@@ -1,8 +1,8 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1 ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.8 (Track D Phase 1: sync orchestration + auto-sync on open)
+**Version**: 0.0.8 (Track D Phase 1-2: sync orchestration + auto-sync + frequency-based scheduler)
 
 ## Session 0.0.8 Completion Summary
 
@@ -42,12 +42,22 @@
    - [x] Non-blocking: auto-sync runs while app initializes
    - [x] Completes on-app-open sync functionality per spec
 
-5. **Build & Test Verification**
+5. **Frequency-Based Sync Scheduler** (Track D Phase 2)
+   - [x] Created SyncScheduler class in src/lib/sync-scheduler.ts
+   - [x] Supports manual, on-open, 12h, and 24h frequency modes
+   - [x] Automatically starts on app mount, stops on unmount
+   - [x] Reads sync_frequency setting from database
+   - [x] Sets up interval timers for 12h/24h background sync
+   - [x] Graceful error handling: sync failures don't crash scheduler
+   - [x] Enables continuous background syncing during app use
+
+6. **Build & Test Verification**
    - [x] `cargo check` passes without errors
    - [x] `npm build` passes (Vite build succeeds, no TS errors)
    - [x] `npm test` passes (all 9 TypeScript tests)
    - [x] `cargo test` passes (all 8 Rust unit tests)
    - [x] No breaking changes to existing functionality
+   - [x] 5 commits completed and pushed
    - [x] Ready for version tag 0.0.8
 
 ---
@@ -551,13 +561,13 @@
 
 ### Next Priorities (for next developer)
 
-1. **Track D Phase 2 - Frequency-Based Scheduling**: Implement periodic sync during app use
-   - Priority: HIGH — improves UX for long-running sessions
-   - Read sync_frequency setting from database (manual/on-open/12h/24h)
-   - Implement timer-based scheduler for 12h/24h frequencies
-   - Execute sync in background without blocking UI
-   - Update Header with real-time sync status
-   - **Already implemented**: shouldSyncOnOpen() can be reused for on-open check
+1. **Track D Phase 3 - Async Sync State Tracking**: Real-time progress display
+   - Priority: HIGH — improves UX with live spinner during long syncs
+   - Use Arc<Mutex<bool>> for thread-safe sync state in main.rs
+   - Update flag when sync_simplefin starts/ends
+   - Return true in get_sync_status during active sync
+   - Currently: in_progress flag always false; prevents real-time feedback
+   - **Why**: Users can't tell if a long-running sync is still working
 
 2. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
    - Priority: HIGH — critical for multi-account accuracy
@@ -594,6 +604,9 @@
 - [x] sync_orchestrator module with 24-hour check
 - [x] shouldSyncOnOpen command
 - [x] Frontend auto-sync on app open integration
+- [x] Frequency-based sync scheduler (12h, 24h, on-open, manual modes)
+- [x] Track D Phase 1-2 fully implemented
+- [x] 5 commits with comprehensive features
 
 ### Build & Test Status
 - Frontend: npm build ✓ / npm test ✓ (9 TypeScript tests passing)
