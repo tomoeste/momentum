@@ -165,8 +165,18 @@ function App() {
 
       <main className="p-6 flex-1">
         {error && (
-          <div className="mb-4 p-4 bg-red-900 bg-opacity-20 border border-red-500 rounded-lg text-red-300">
-            {error}
+          <div className="mb-4 p-4 bg-red-900 bg-opacity-20 border border-red-500 rounded-lg text-red-300 flex items-center justify-between">
+            <div className="flex-1">
+              <p className="font-semibold mb-1">Sync Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded text-sm font-medium whitespace-nowrap transition-colors"
+            >
+              {syncing ? 'Retrying...' : 'Retry'}
+            </button>
           </div>
         )}
 
