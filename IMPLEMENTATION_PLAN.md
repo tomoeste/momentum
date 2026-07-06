@@ -1,8 +1,42 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.12 (SimpleFIN Setup Token Fix + Error Recovery + Unit Tests)
+**Version**: 0.0.13 (Database Integration Tests + Bug Fix)
+
+## Session 0.0.13 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **Database Integration Tests (Track E)** - 17 new tests
+   - [x] Account CRUD operations and retrieval
+   - [x] Transaction insertion, filtering by account, and pagination
+   - [x] Categorization workflow with FK constraints
+   - [x] Metrics calculations (income, spending, debt paydown, interest paid)
+   - [x] Debt ratio calculations with multiple accounts
+   - [x] Sync logging with success/failure tracking
+   - [x] Settings persistence (save/update/retrieve)
+   - [x] Foreign key constraint enforcement
+   - [x] Sparkline generation for metrics visualization
+
+2. **Critical Bug Fix**
+   - [x] Fixed parameter numbering in `get_transactions()` when `account_id` is `None`
+   - [x] Query was using `?2/?3` instead of `?1/?2`, causing "Wrong number of parameters" error
+   - [x] Now correctly handles both filtered and unfiltered transaction queries
+
+3. **Test Status**
+   - [x] 32 Rust unit tests passing (15 original + 17 new database integration tests)
+   - [x] 9 TypeScript tests passing
+   - [x] All tests focused on critical paths: persistence, aggregation, constraints
+
+4. **Build & Test Verification**
+   - [x] `cargo check` passes without errors
+   - [x] `cargo test` passes with 32 Rust tests
+   - [x] `npm build` passes (Vite build succeeds, no TS errors)
+   - [x] `npm test` passes (all 9 TypeScript tests)
+   - [x] Created version tag 0.0.13
+
+---
 
 ## Session 0.0.11-0.0.12 Completion Summary
 
@@ -334,26 +368,26 @@
 
 **NEXT (ready to start)**:
 
-1. **Track D - Sync Orchestration**: Background sync scheduling + error recovery
-   - Sync scheduler: check on app open if >24h since last sync, trigger auto-sync
-   - Background sync via settings (configurable frequency + backfill)
-   - Retry with exponential backoff for transient failures
-   - Partial data preservation (capture what succeeded before error)
-   - Sync status indicator in Header (in-progress spinner, error badge)
-   - Error recovery UI: display sync errors in dashboard alert + retry button
+1. **Component Tests** (Track E continuation) - Requires new test library
+   - Add React Testing Library for component testing
+   - Test SettingsModal component with user interactions
+   - Test TransactionList filtering and pagination
+   - Test Header sync button and status display
+   - Priority: MEDIUM (validates UI logic, catches regressions)
 
-2. **Account-to-Transaction Mapping** (Track A continuation): Handle SimpleFIN limitation
-   - SimpleFIN returns flat transaction list without account_id
-   - Option A: Merchant pattern matching (e.g., PayPal → link to source account)
-   - Option B: User-guided mapping: first sync shows account picker for unmapped txns
-   - Option C: Require explicit account selection in SimpleFIN settings UI
-   - Update sync_simplefin to populate transaction.account_id before insert
+2. **SimpleFIN Sync Integration Tests** (Track E) - Requires HTTP mocking
+   - Add wiremock or similar for HTTP response mocking
+   - Test complete sync flow: claim → fetch accounts → fetch transactions → store
+   - Test error scenarios: network timeout, invalid credentials, malformed responses
+   - Test partial failure recovery (some accounts succeed, others fail)
+   - Priority: MEDIUM (critical data pipeline validation)
 
-3. **Track E - Full Test Coverage**: Integration + component tests
-   - Add integration tests for SimpleFIN sync flow with mocked API
-   - Component tests for SettingsModal, TransactionList, Header
-   - Error path tests (failed sync, API timeout, network errors)
-   - Database integration tests (migrations, upserts, queries)
+3. **Error Path Tests** (Track E) - Test failure scenarios
+   - Failed sync recovery and retry logic
+   - Network timeout handling
+   - Malformed API response handling
+   - Database constraint violations
+   - Priority: MEDIUM (ensures robustness)
 
 4. **Performance & Polish**:
    - Performance profiling with real data (1K+ transactions)
@@ -363,9 +397,9 @@
    - Error boundary component for fault isolation
 
 **Quick Wins**:
-- Test keychain on Windows/Linux (currently developed on macOS)
+- Clean up compiler warnings (unused imports, dead code)
+- Test keychain on Windows/Linux (currently macOS only)
 - Cross-platform build validation (macOS/Windows/Linux)
-- Add loading states to sync button in Header
 
 ---
 
@@ -599,19 +633,22 @@
 
 ---
 
-## PARALLEL TRACK E — Testing ✓ TEST INFRASTRUCTURE COMPLETE
+## PARALLEL TRACK E — Testing ✓ TEST INFRASTRUCTURE + DATABASE TESTS COMPLETE
 
 ### Completed
 - [x] Vitest setup for React components (vite.config.ts configured with jsdom environment)
 - [x] Test infrastructure: src/test/setup.ts + src/test/calculations.test.ts
 - [x] Unit tests: Rust calculation tests (7 passing)
 - [x] Unit tests: TypeScript calculation tests (9 passing)
+- [x] DB integration tests (17 tests covering CRUD, aggregation, constraints, settings)
+  - Account and transaction operations
+  - Metrics calculations and sparkline generation
+  - Sync logging and status tracking
+  - Foreign key constraints
 
 ### Remaining
-- [ ] Unit tests: categorization output parsing (LLM JSON response validation)
-- [ ] DB integration tests (migrations, upserts, queries)
-- [ ] SimpleFIN sync test w/ mocked API
-- [ ] Component tests (SettingsModal, TransactionList, Header)
+- [ ] Component tests (SettingsModal, TransactionList, Header) - requires React Testing Library
+- [ ] SimpleFIN sync test w/ mocked API - requires wiremock or similar
 - [ ] Error-path tests (failed sync, API timeout, network errors)
 
 ---
