@@ -4,6 +4,15 @@
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
 **Version**: 0.0.10 (Account-to-Transaction Mapping UI)
 
+## Known Issues - Fix First
+
+**RESOLVED (Session 0.0.11)**:
+1. ~~The SimpleFIN setup process needs to accept the SimpleFIN **setup token**, which is a base64 encoded claim URL. You POST a request to the decoded claim URL and receive an access URL to use for all API requests going forward.~~
+   - **Fix**: Updated `SimpleFin::claim_token()` to base64-decode the setup token and POST to the decoded claim URL
+   - Added `base64` crate dependency to Cargo.toml
+   - Updated spec 04_simplefin_auth.md with corrected token format and decoding logic
+   - All tests passing (10 Rust, 9 TypeScript)
+
 ## Session 0.0.10 Completion Summary
 
 **COMPLETED THIS SESSION:**

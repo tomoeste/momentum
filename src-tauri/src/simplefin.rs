@@ -2,6 +2,7 @@ use crate::errors::{AppError, Result};
 use crate::models::{Account, AccountType, RawTransaction};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, Duration};
+use base64::{engine::general_purpose, Engine as _};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SimpleFINBalance {
@@ -65,15 +66,28 @@ impl SimpleFin {
     }
 
     pub async fn claim_token(setup_token: &str) -> Result<String> {
+        // Decode base64-encoded setup token to get the claim URL
+        let claim_url = general_purpose::STANDARD
+            .decode(setup_token)
+            .map_err(|e| AppError::SimpleFin(format!("Failed to decode setup token: {}", e)))
+            .and_then(|bytes| {
+                String::from_utf8(bytes)
+                    .map_err(|e| AppError::SimpleFin(format!("Setup token is not valid UTF-8: {}", e)))
+            })?;
+
+        // Validate that the decoded URL is valid
+        if !claim_url.starts_with("https://") {
+            return Err(AppError::SimpleFin(
+                "Decoded claim URL must use HTTPS".to_string(),
+            ));
+        }
+
         let client = reqwest::Client::new();
-        let request = ClaimTokenRequest {
-            setup_token: setup_token.to_string(),
-        };
 
         let response = client
-            .post("https://auth.simplefin.com/claim")
-            .json(&request)
+            .post(&claim_url)
             .header("User-Agent", "Momentum/1.0 (compatible with SimpleFIN API)")
+            .header("Content-Type", "application/json")
             .timeout(std::time::Duration::from_secs(10))
             .send()
             .await

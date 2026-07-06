@@ -45,7 +45,26 @@ User                        App                     SimpleFIN
 
 ### 2.1 Request Format
 
-**Endpoint**: `POST https://auth.simplefin.com/claim`
+**Endpoint**: Dynamic (decoded from setup token)
+
+The setup token is a base64-encoded URL that contains the actual claim endpoint. The application must:
+1. Base64-decode the setup token to obtain the claim URL
+2. POST to the decoded claim URL
+
+**Token Format**:
+```
+setup_token = base64(claim_url)
+claim_url = "https://auth.simplefin.com/claim?token=abc123def456"
+```
+
+**Example Token Decoding**:
+```
+Encoded (base64):
+  aHR0cHM6Ly9hdXRoLnNpbXBsZWZpbi5jb20vY2xhaW0/dG9rZW49YWJjMTIzZGVmNDU2
+
+Decoded:
+  https://auth.simplefin.com/claim?token=abc123def456
+```
 
 **Headers**:
 ```
@@ -54,19 +73,20 @@ User-Agent: Momentum/1.0 (compatible with SimpleFIN API)
 ```
 
 **Request Body**:
-```json
-{
-  "setup_token": "SETUP_TOKEN_HERE"
-}
-```
+Empty JSON object (no body needed for GET-style claims) or empty if specified by endpoint
 
-**Example Request**:
-```bash
-curl -X POST https://auth.simplefin.com/claim \
-  -H "Content-Type: application/json" \
-  -d '{
-    "setup_token": "https://simplefin.com/sync/setup/abc123def456"
-  }'
+**Example Request** (pseudocode):
+```typescript
+const setupToken = "aHR0cHM6Ly9hdXRoLnNpbXBsZWZpbi5jb20vY2xhaW0/dG9rZW49YWJjMTIzZGVmNDU2";
+const claimUrl = base64Decode(setupToken); // "https://auth.simplefin.com/claim?token=abc123def456"
+
+const response = await fetch(claimUrl, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'User-Agent': 'Momentum/1.0',
+  }
+});
 ```
 
 ### 2.2 Response Format
@@ -387,14 +407,25 @@ User can manually disconnect SimpleFIN:
 ```typescript
 async function claimSimpleFINToken(setupToken: string): Promise<string> {
   try {
-    // 1. Send claim request
-    const response = await fetch('https://auth.simplefin.com/claim', {
+    // 1. Base64-decode setup token to get claim URL
+    let claimUrl: string;
+    try {
+      const decodedBytes = Buffer.from(setupToken, 'base64').toString('utf-8');
+      claimUrl = decodedBytes;
+      if (!claimUrl.startsWith('https://')) {
+        throw new Error('Decoded claim URL must use HTTPS');
+      }
+    } catch (error) {
+      throw new SimpleFINError('invalid_token', `Failed to decode setup token: ${error.message}`);
+    }
+
+    // 2. Send claim request to decoded URL
+    const response = await fetch(claimUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Momentum/1.0',
       },
-      body: JSON.stringify({ setup_token: setupToken }),
       timeout: 10000,
     });
 
@@ -406,13 +437,13 @@ async function claimSimpleFINToken(setupToken: string): Promise<string> {
     const data = await response.json();
     const accessUrl = data.access_url;
 
-    // 2. Validate access URL format
+    // 3. Validate access URL format
     validateAccessUrl(accessUrl);
 
-    // 3. Store in keychain
+    // 4. Store in keychain
     await storeInKeychain('simplefin_access', accessUrl);
 
-    // 4. Test connection
+    // 5. Test connection
     await testSimpleFINConnection(accessUrl);
 
     return accessUrl;

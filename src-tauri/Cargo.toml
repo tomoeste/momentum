@@ -25,6 +25,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 dirs = "5.0"
 keyring = "2.0"
+base64 = "0.22"
 
 [lib]
 name = "momentum_lib"
