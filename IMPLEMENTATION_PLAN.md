@@ -1,8 +1,42 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.10 (Account-to-Transaction Mapping UI)
+**Version**: 0.0.12 (SimpleFIN Setup Token Fix + Error Recovery + Unit Tests)
+
+## Session 0.0.11-0.0.12 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **SimpleFIN Setup Token Fix** (Critical bug fix)
+   - [x] Implemented base64 decoding of setup tokens
+   - [x] Updated `SimpleFin::claim_token()` to decode and validate claim URLs
+   - [x] Added `base64` crate dependency to Cargo.toml
+   - [x] Updated spec 04_simplefin_auth.md with correct token format
+   - [x] All 15 Rust tests passing (10 original + 5 new SimpleFIN tests)
+
+2. **Error Recovery UI** (Track D continuation)
+   - [x] Added retry button to sync error display
+   - [x] Enhanced error messaging with "Sync Error" label
+   - [x] Improved visual hierarchy of error alerts
+   - [x] Retry button disabled during active sync operations
+
+3. **SimpleFIN Unit Tests** (Track E - Test Coverage)
+   - [x] test_setup_token_decoding_valid: Base64 decoding
+   - [x] test_setup_token_decoding_invalid_base64: Error handling
+   - [x] test_validate_access_url_https_required: HTTPS enforcement
+   - [x] test_validate_access_url_requires_credentials: Credentials validation
+   - [x] test_validate_access_url_valid: Valid URL format
+
+4. **Build & Test Verification**
+   - [x] `cargo check` passes without errors
+   - [x] `cargo test` passes with 15 Rust unit tests
+   - [x] `npm build` passes (Vite build succeeds, no TS errors)
+   - [x] `npm test` passes (all 9 TypeScript tests)
+   - [x] All commits pushed to origin/main
+   - [x] Ready for version tag 0.0.12
+
+---
 
 ## Known Issues - Fix First
 
@@ -11,7 +45,7 @@
    - **Fix**: Updated `SimpleFin::claim_token()` to base64-decode the setup token and POST to the decoded claim URL
    - Added `base64` crate dependency to Cargo.toml
    - Updated spec 04_simplefin_auth.md with corrected token format and decoding logic
-   - All tests passing (10 Rust, 9 TypeScript)
+   - All tests passing (15 Rust, 9 TypeScript)
 
 ## Session 0.0.10 Completion Summary
 
