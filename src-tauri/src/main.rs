@@ -1,7 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
 use tracing_subscriber;
 use std::path::PathBuf;
 
@@ -15,6 +14,7 @@ mod calculator;
 mod keychain;
 
 use db::Database;
+use llm::LlmClient;
 
 fn main() {
     // Initialize logging
@@ -37,8 +37,19 @@ fn main() {
     let database = Database::new(db_path.to_str().unwrap())
         .expect("Failed to initialize database");
 
+    // Initialize LLM client
+    // Try to read from environment variables or keychain
+    let ollama_url = std::env::var("OLLAMA_URL").ok()
+        .or_else(|| Some("http://localhost:11434".to_string()));
+
+    let api_key = std::env::var("LLM_API_KEY").ok()
+        .or_else(|| keychain::Keychain::retrieve_llm_api_key().ok());
+
+    let llm_client = LlmClient::new(ollama_url, api_key);
+
     tauri::Builder::default()
         .manage(database)
+        .manage(llm_client)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_dashboard_metrics,

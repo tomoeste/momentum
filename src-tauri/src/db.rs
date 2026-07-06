@@ -254,6 +254,34 @@ impl Database {
         Ok(())
     }
 
+    pub fn categorize_transaction_with_params(
+        &self,
+        id: &str,
+        category: &str,
+        secondary_category: Option<&str>,
+        confidence: f64,
+        note: Option<&str>,
+        is_manual: bool,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO categorized_transactions (id, category, secondary_category, confidence, note, categorized_at, is_manual)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                id,
+                category,
+                secondary_category,
+                confidence,
+                note,
+                chrono::Utc::now().to_rfc3339(),
+                is_manual as i32,
+            ],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(())
+    }
+
     pub fn get_transactions(&self, account_id: Option<&str>, limit: i32, offset: i32) -> Result<Vec<RawTransaction>> {
         let conn = self.conn.lock().unwrap();
         let query = if account_id.is_some() {

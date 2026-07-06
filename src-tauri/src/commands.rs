@@ -87,7 +87,7 @@ pub async fn get_dashboard_metrics(
 ) -> Result<DashboardMetrics> {
     // Calculate date range based on period
     let now = Utc::now();
-    let (start_date, days_back) = match req.period {
+    let (start_date, _days_back) = match req.period {
         Period::Week => (now - Duration::days(7), 7),
         Period::Month => (now - Duration::days(30), 30),
     };
@@ -203,6 +203,7 @@ pub async fn claim_setup_token(req: ClaimSetupTokenRequest) -> Result<ClaimSetup
 pub async fn sync_simplefin(
     req: SyncSimplefinRequest,
     db: State<'_, Database>,
+    llm: State<'_, crate::llm::LlmClient>,
 ) -> Result<SyncStatus> {
     let start_time = std::time::Instant::now();
     let days_back = req.days_back.unwrap_or(90);
@@ -244,7 +245,7 @@ pub async fn sync_simplefin(
         }
     };
 
-    // Upsert transactions into database
+    // Upsert transactions and auto-categorize
     for txn in transactions {
         // SimpleFIN doesn't give account_id; we'd need to match by merchant or prompt user
         // For now, skip or log this limitation
@@ -252,6 +253,40 @@ pub async fn sync_simplefin(
             tracing::error!("Failed to insert transaction {}: {:?}", txn.id, e);
         } else {
             transaction_count += 1;
+
+            // Auto-categorize the transaction using LLM
+            let merchant = txn.merchant.as_deref().unwrap_or(&txn.description);
+            let description = &txn.description;
+
+            match llm.categorize(merchant, description).await {
+                Ok(categorization) => {
+                    // Insert categorization into database
+                    match db.categorize_transaction_with_params(
+                        &txn.id,
+                        &categorization.category,
+                        categorization.secondary_category.as_deref(),
+                        categorization.confidence,
+                        categorization.note.as_deref(),
+                        false, // is_manual = false for auto-categorization
+                    ) {
+                        Ok(_) => {
+                            tracing::debug!(
+                                "Categorized transaction {} as {} (confidence: {:.2})",
+                                txn.id,
+                                categorization.category,
+                                categorization.confidence
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to store categorization for {}: {:?}", txn.id, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to categorize transaction {}: {:?}", txn.id, e);
+                    // Don't fail the sync, just log the warning
+                }
+            }
         }
     }
 
