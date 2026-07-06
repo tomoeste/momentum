@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Toaster } from 'sonner'
 import './App.css'
 import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, shouldSyncOnOpen, getTransactionMappingSuggestions, submitTransactionMappings, Period, DashboardMetrics, GetOpportunityScenariosResponse, GetTransactionMappingSuggestionsResponse } from './lib/tauri-commands'
 import { Header } from './components/Header'
@@ -6,6 +7,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { AccountMappingModal } from './components/AccountMappingModal'
 import { TransactionList } from './components/TransactionList'
 import { syncScheduler } from './lib/sync-scheduler'
+import { showErrorToast, showSuccessToast } from './lib/toast-utils'
 
 type AppView = 'dashboard' | 'transactions'
 
@@ -58,9 +60,12 @@ function App() {
           await syncSimpleFin({ days_back: 90 })
           await checkForMappingNeeded()
           await loadData()
+          showSuccessToast('Auto-sync complete', 'Your accounts and transactions are up to date')
         } catch (err) {
           console.error('Auto-sync failed:', err)
-          // Don't show error to user on auto-sync failure; they can manually retry
+          const errorMessage = err instanceof Error ? err.message : 'Auto-sync failed'
+          setError(errorMessage)
+          showErrorToast('Auto-sync failed', errorMessage)
         } finally {
           setSyncing(false)
         }
@@ -117,9 +122,12 @@ function App() {
       await checkForMappingNeeded()
       // Reload data after sync
       await loadData()
+      showSuccessToast('Sync complete', 'Your accounts and transactions are up to date')
     } catch (err) {
       console.error('Failed to sync:', err)
-      setError(err instanceof Error ? err.message : 'Sync failed')
+      const errorMessage = err instanceof Error ? err.message : 'Sync failed'
+      setError(errorMessage)
+      showErrorToast('Sync failed', errorMessage)
     } finally {
       setSyncing(false)
     }
@@ -149,6 +157,7 @@ function App() {
       <div className="min-h-screen bg-gray-900 text-white flex flex-col">
         <TransactionList onClose={() => setView('dashboard')} />
         <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <Toaster theme="dark" />
       </div>
     )
   }
@@ -287,6 +296,8 @@ function App() {
           onCancel={handleMappingCancel}
         />
       )}
+
+      <Toaster theme="dark" />
     </div>
   )
 }

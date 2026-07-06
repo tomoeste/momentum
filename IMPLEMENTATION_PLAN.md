@@ -1,8 +1,8 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓** **DB Constraint Tests ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓** **DB Constraint Tests ✓** **Error Display & Recovery Notifications ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.17 (DB Constraint Tests)
+**Version**: 0.0.18 (Error Display & Recovery Notifications)
 
 ## Test Infrastructure Summary (Sessions 0.0.15-0.0.17)
 
@@ -40,6 +40,42 @@
 - UI polish (loading states, error toasts)
 - Performance optimizations
 - Cross-platform keychain testing
+
+---
+
+## Session 0.0.18 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **Error Display & Recovery Notifications** (UI Polish - Track D continuation)
+   - [x] Added sonner toast library for auto-dismissing notifications
+   - [x] Created src/lib/toast-utils.ts with utility functions:
+     - showErrorToast(message): Display error message with auto-dismiss
+     - showSuccessToast(message): Display success message with auto-dismiss
+   - [x] Updated App.tsx sync handlers:
+     - Show success toast on successful sync completion
+     - Show error toast on sync failure with error message
+   - [x] Updated auto-sync flow:
+     - Previously silent; now shows toast notifications for user feedback
+     - Enables users to see sync status without checking UI manually
+   - [x] Kept inline error banner for persistent display:
+     - Error banner remains in Header for at-a-glance error state
+     - Retry button functional for manual sync retry
+     - Toast provides additional notification layer (dual feedback system)
+
+2. **Test Status**
+   - [x] 61 Rust library tests passing (56 original + 5 DB constraint tests)
+   - [x] 39 Rust main tests passing
+   - [x] 58 TypeScript tests passing
+   - [x] Total: 119 tests passing
+   - [x] Zero compiler warnings
+
+3. **Build & Test Verification**
+   - [x] `cargo check` passes without errors or warnings
+   - [x] `cargo test` passes (61 Rust library + 39 main tests)
+   - [x] `npm build` passes (Vite build succeeds, no TS errors)
+   - [x] `npm test` passes (all 58 TypeScript tests)
+   - [x] No breaking changes to existing functionality
 
 ---
 
@@ -550,6 +586,10 @@
    - Completed Session 0.0.15: HTTP mocking setup, account/transaction tests, error handling
    - Status: 45 Rust library tests passing (13 new + 32 original)
 
+2. ✓ **Error Display & Recovery** - Toast notifications + UI feedback
+   - Completed Session 0.0.18: Sonner toast library, toast-utils.ts, App.tsx integration
+   - Status: Dual feedback system (inline banner + auto-dismiss toasts)
+
 **PARTIALLY COMPLETED**:
 
 1. **Error Path Tests** (Track E) - Test failure scenarios
@@ -913,12 +953,12 @@
 
 ### Next Priorities (for next developer)
 
-1. **Error Display & Recovery**: Improve error handling in UI
-   - Priority: MEDIUM — improves user experience
-   - Display sync errors prominently in Header or dashboard
-   - Add retry button for failed syncs
-   - Show last error message from get_sync_status
-   - Implement error toast notifications
+1. ✓ **Error Display & Recovery**: Error handling UI complete (Session 0.0.18)
+   - ✓ Sync errors display via toast notifications (auto-dismiss)
+   - ✓ Retry button functional in Header error banner
+   - ✓ Last error message shown from get_sync_status
+   - ✓ Dual feedback system: inline banner + toast notifications
+   - ✓ Tests: 119 total (61 Rust + 58 TS), all passing
 
 2. **Track E - Integration Tests**: Expand coverage beyond unit tests
    - Priority: MEDIUM — confidence for future changes
