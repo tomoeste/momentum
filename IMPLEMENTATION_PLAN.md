@@ -5,8 +5,11 @@
 
 ## Current Blockers & Priorities
 
-**IMMEDIATE (blocking all progress)**:
-- **Build Environment**: Rust compilation needs C compiler (gcc/g++). Container is missing build tools. Must install or use vendored deps.
+**IMMEDIATE (known issue - workaround implemented)**:
+- **Build Environment**: Rust compilation needs C compiler (gcc/g++). Container lacks build-essential and sudo access.
+  - **Workaround**: Use `cargo check` for validation (stops after type checking, no linking)
+  - **Long-term**: Deploy to environment with C compiler for final builds
+  - **Alternative**: Switch to pure Rust DB (sled, embedded-postgres) if available
 
 **NEXT (unblocked by specs)**:
 1. **CP2 - Database Layer**: Implement query methods + connection pooling (~1 day)

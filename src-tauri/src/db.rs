@@ -1,5 +1,6 @@
-use rusqlite::{Connection, Result as SqliteResult};
+use rusqlite::{Connection, params, OptionalExtension};
 use std::sync::Mutex;
+use chrono::Utc;
 use crate::errors::{AppError, Result};
 use crate::models::*;
 
@@ -89,32 +90,227 @@ impl Database {
     }
 
     pub fn get_accounts(&self) -> Result<Vec<Account>> {
-        // TODO: implement
-        Ok(Vec::new())
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT id, simplefin_account_id, name, account_type, organization, balance, last_updated FROM accounts")
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let accounts = stmt
+            .query_map([], |row| {
+                Ok(Account {
+                    id: row.get(0)?,
+                    simplefin_account_id: row.get(1)?,
+                    name: row.get(2)?,
+                    account_type: match row.get::<_, String>(3)?.as_str() {
+                        "checking" => AccountType::Checking,
+                        "savings" => AccountType::Savings,
+                        "credit_card" => AccountType::CreditCard,
+                        "loan" => AccountType::Loan,
+                        _ => AccountType::Checking,
+                    },
+                    organization: row.get(4)?,
+                    balance: row.get(5)?,
+                    last_updated: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
+                        .ok()
+                        .map(|dt| dt.with_timezone(&Utc)),
+                })
+            })
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(accounts)
     }
 
     pub fn insert_account(&self, account: &Account) -> Result<()> {
-        // TODO: implement
+        let conn = self.conn.lock().unwrap();
+        let account_type_str = match account.account_type {
+            AccountType::Checking => "checking",
+            AccountType::Savings => "savings",
+            AccountType::CreditCard => "credit_card",
+            AccountType::Loan => "loan",
+        };
+
+        conn.execute(
+            "INSERT OR REPLACE INTO accounts (id, simplefin_account_id, name, account_type, organization, balance, last_updated)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &account.id,
+                &account.simplefin_account_id,
+                &account.name,
+                account_type_str,
+                &account.organization,
+                account.balance,
+                account.last_updated.to_rfc3339(),
+            ],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         Ok(())
     }
 
     pub fn get_debt_accounts(&self) -> Result<Vec<DebtAccount>> {
-        // TODO: implement
-        Ok(Vec::new())
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT id, simplefin_account_id, name, account_type, current_balance, interest_rate, minimum_payment, last_updated FROM debt_accounts")
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let accounts = stmt
+            .query_map([], |row| {
+                Ok(DebtAccount {
+                    id: row.get(0)?,
+                    simplefin_account_id: row.get(1)?,
+                    name: row.get(2)?,
+                    account_type: match row.get::<_, String>(3)?.as_str() {
+                        "checking" => AccountType::Checking,
+                        "savings" => AccountType::Savings,
+                        "credit_card" => AccountType::CreditCard,
+                        "loan" => AccountType::Loan,
+                        _ => AccountType::Checking,
+                    },
+                    current_balance: row.get(4)?,
+                    interest_rate: row.get(5)?,
+                    minimum_payment: row.get(6)?,
+                    last_updated: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                        .ok()
+                        .map(|dt| dt.with_timezone(&Utc)),
+                })
+            })
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(accounts)
     }
 
     pub fn insert_debt_account(&self, account: &DebtAccount) -> Result<()> {
-        // TODO: implement
+        let conn = self.conn.lock().unwrap();
+        let account_type_str = match account.account_type {
+            AccountType::Checking => "checking",
+            AccountType::Savings => "savings",
+            AccountType::CreditCard => "credit_card",
+            AccountType::Loan => "loan",
+        };
+
+        conn.execute(
+            "INSERT OR REPLACE INTO debt_accounts (id, simplefin_account_id, name, account_type, current_balance, interest_rate, minimum_payment, last_updated)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &account.id,
+                &account.simplefin_account_id,
+                &account.name,
+                account_type_str,
+                account.current_balance,
+                account.interest_rate,
+                account.minimum_payment,
+                account.last_updated.to_rfc3339(),
+            ],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         Ok(())
     }
 
     pub fn insert_transaction(&self, tx: &RawTransaction) -> Result<()> {
-        // TODO: implement
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO raw_transactions (id, account_id, posted_date, amount, merchant, description, transaction_type, imported_at, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &tx.id,
+                &tx.account_id,
+                tx.posted_date.to_rfc3339(),
+                tx.amount,
+                &tx.merchant,
+                &tx.description,
+                &tx.transaction_type,
+                tx.imported_at.to_rfc3339(),
+                "simplefin",
+            ],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         Ok(())
     }
 
     pub fn categorize_transaction(&self, id: &str, category: &CategorizedTransaction) -> Result<()> {
-        // TODO: implement
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO categorized_transactions (id, category, secondary_category, confidence, note, categorized_at, is_manual)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                id,
+                &category.category,
+                &category.secondary_category,
+                category.confidence,
+                &category.note,
+                category.categorized_at.to_rfc3339(),
+                category.is_manual as i32,
+            ],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         Ok(())
+    }
+
+    pub fn get_transactions(&self, account_id: Option<&str>, limit: i32, offset: i32) -> Result<Vec<RawTransaction>> {
+        let conn = self.conn.lock().unwrap();
+        let query = if account_id.is_some() {
+            "SELECT id, account_id, posted_date, amount, merchant, description, transaction_type, imported_at FROM raw_transactions WHERE account_id = ?1 ORDER BY posted_date DESC LIMIT ?2 OFFSET ?3"
+        } else {
+            "SELECT id, account_id, posted_date, amount, merchant, description, transaction_type, imported_at FROM raw_transactions ORDER BY posted_date DESC LIMIT ?2 OFFSET ?3"
+        };
+
+        let mut stmt = conn.prepare(query).map_err(|e| AppError::Database(e.to_string()))?;
+
+        let transactions = if let Some(acc_id) = account_id {
+            stmt
+                .query_map(params![acc_id, limit, offset], |row| {
+                    Ok(RawTransaction {
+                        id: row.get(0)?,
+                        account_id: row.get(1)?,
+                        posted_date: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(2)?)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .unwrap_or_else(Utc::now),
+                        amount: row.get(3)?,
+                        merchant: row.get(4)?,
+                        description: row.get(5)?,
+                        transaction_type: row.get(6)?,
+                        imported_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .unwrap_or_else(Utc::now),
+                    })
+                })
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(|e| AppError::Database(e.to_string()))?
+        } else {
+            stmt
+                .query_map(params![limit, offset], |row| {
+                    Ok(RawTransaction {
+                        id: row.get(0)?,
+                        account_id: row.get(1)?,
+                        posted_date: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(2)?)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .unwrap_or_else(Utc::now),
+                        amount: row.get(3)?,
+                        merchant: row.get(4)?,
+                        description: row.get(5)?,
+                        transaction_type: row.get(6)?,
+                        imported_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .unwrap_or_else(Utc::now),
+                    })
+                })
+                .map_err(|e| AppError::Database(e.to_string()))?
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(|e| AppError::Database(e.to_string()))?
+        };
+
+        Ok(transactions)
     }
 }
