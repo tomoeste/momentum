@@ -42,6 +42,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_dashboard_metrics,
             commands::get_transactions,
+            commands::claim_setup_token,
             commands::sync_simplefin,
             commands::get_accounts,
             commands::set_debt_terms,

@@ -51,6 +51,22 @@ pub struct RecategorizeTransactionRequest {
     pub note: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncSimplefinRequest {
+    pub access_url: String,
+    pub days_back: Option<u32>,  // Default: 90 days
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClaimSetupTokenRequest {
+    pub setup_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClaimSetupTokenResponse {
+    pub access_url: String,
+}
+
 // Tauri command handlers
 #[tauri::command]
 pub async fn get_dashboard_metrics(
@@ -151,13 +167,77 @@ pub async fn get_transactions(
 }
 
 #[tauri::command]
-pub async fn sync_simplefin() -> Result<SyncStatus> {
-    // TODO: implement SimpleFIN sync
+pub async fn claim_setup_token(req: ClaimSetupTokenRequest) -> Result<ClaimSetupTokenResponse> {
+    let access_url = crate::simplefin::SimpleFin::claim_token(&req.setup_token).await?;
+    Ok(ClaimSetupTokenResponse { access_url })
+}
+
+#[tauri::command]
+pub async fn sync_simplefin(
+    req: SyncSimplefinRequest,
+    db: State<'_, Database>,
+) -> Result<SyncStatus> {
+    let start_time = std::time::Instant::now();
+    let days_back = req.days_back.unwrap_or(90);
+
+    // Validate access URL format
+    crate::simplefin::SimpleFin::validate_access_url(&req.access_url)?;
+
+    // Create SimpleFIN client
+    let client = crate::simplefin::SimpleFin::new(req.access_url);
+
+    // Fetch accounts
+    let accounts = match client.fetch_accounts().await {
+        Ok(accounts) => accounts,
+        Err(e) => {
+            let error_msg = format!("{:?}", e);
+            db.insert_sync_log("failed", 0, Some(&error_msg), start_time.elapsed().as_millis() as i32)?;
+            return Err(e);
+        }
+    };
+
+    // Upsert accounts into database
+    let mut transaction_count = 0;
+    for account in accounts {
+        if let Err(e) = db.insert_account(&account) {
+            tracing::error!("Failed to insert account {}: {:?}", account.id, e);
+        }
+    }
+
+    // Fetch transactions
+    let transactions = match client.fetch_transactions(days_back).await {
+        Ok(txns) => txns,
+        Err(e) => {
+            let error_msg = format!("{:?}", e);
+            db.insert_sync_log("failed", transaction_count, Some(&error_msg), start_time.elapsed().as_millis() as i32)?;
+            return Err(e);
+        }
+    };
+
+    // Upsert transactions into database
+    for mut txn in transactions {
+        // SimpleFIN doesn't give account_id; we'd need to match by merchant or prompt user
+        // For now, skip or log this limitation
+        if let Err(e) = db.insert_transaction(&txn) {
+            tracing::error!("Failed to insert transaction {}: {:?}", txn.id, e);
+        } else {
+            transaction_count += 1;
+        }
+    }
+
+    // Log successful sync
+    db.insert_sync_log(
+        "success",
+        transaction_count,
+        None,
+        start_time.elapsed().as_millis() as i32,
+    )?;
+
     Ok(SyncStatus {
         in_progress: false,
-        last_sync: None,
+        last_sync: Some(Utc::now()),
         last_error: None,
-        transaction_count: 0,
+        transaction_count,
     })
 }
 

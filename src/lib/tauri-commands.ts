@@ -139,6 +139,19 @@ export interface RecategorizeTransactionRequest {
   note?: string
 }
 
+export interface SyncSimplefinRequest {
+  access_url: string
+  days_back?: number  // Default: 90 days
+}
+
+export interface ClaimSetupTokenRequest {
+  setup_token: string
+}
+
+export interface ClaimSetupTokenResponse {
+  access_url: string
+}
+
 // Command functions
 export async function getDashboardMetrics(period: Period): Promise<DashboardMetrics> {
   return invoke<DashboardMetrics>('get_dashboard_metrics', { period })
@@ -160,8 +173,12 @@ export async function recategorizeTransaction(req: RecategorizeTransactionReques
   return invoke<void>('recategorize_transaction', req as unknown as Record<string, unknown>)
 }
 
-export async function syncSimpleFin(): Promise<SyncStatus> {
-  return invoke<SyncStatus>('sync_simplefin')
+export async function claimSetupToken(req: ClaimSetupTokenRequest): Promise<ClaimSetupTokenResponse> {
+  return invoke<ClaimSetupTokenResponse>('claim_setup_token', req as unknown as Record<string, unknown>)
+}
+
+export async function syncSimpleFin(req: SyncSimplefinRequest): Promise<SyncStatus> {
+  return invoke<SyncStatus>('sync_simplefin', req as unknown as Record<string, unknown>)
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
