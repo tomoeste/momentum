@@ -640,9 +640,9 @@ pub async fn get_sync_status(
 
     Ok(SyncStatus {
         in_progress: sync_state.is_in_progress(),
-        last_sync: last_sync_info.as_ref().map(|(ts, _)| *ts),
-        last_error: last_sync_info.as_ref().and_then(|(_, err)| err.clone()),
-        transaction_count: 0, // TODO: Get from last sync_log entry
+        last_sync: last_sync_info.as_ref().map(|(ts, _, _)| *ts),
+        last_error: last_sync_info.as_ref().and_then(|(_, err, _)| err.clone()),
+        transaction_count: last_sync_info.map(|(_, _, count)| count).unwrap_or(0),
     })
 }
 
