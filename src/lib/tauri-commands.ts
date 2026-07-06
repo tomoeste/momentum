@@ -241,6 +241,10 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   return invoke<SyncStatus>('get_sync_status')
 }
 
+export async function shouldSyncOnOpen(): Promise<boolean> {
+  return invoke<boolean>('should_sync_on_open')
+}
+
 export async function getOpportunityScenarios(): Promise<GetOpportunityScenariosResponse> {
   return invoke<GetOpportunityScenariosResponse>('get_opportunity_scenarios')
 }

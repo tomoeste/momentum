@@ -24,11 +24,22 @@
    - [x] Enables transaction queries to work correctly
    - **Future**: User-guided mapping UI for multi-account disambiguation
 
-3. **Build & Test Verification**
+3. **Sync Orchestrator Module & On-Open Check** (Track D continuation)
+   - [x] Created src-tauri/src/sync_orchestrator.rs module
+   - [x] Implemented `should_sync_on_open()` method: checks if >24 hours since last sync
+   - [x] Implemented `should_sync_by_frequency()` helper for frequency-based checks
+   - [x] Created `should_sync_on_open` Tauri command for frontend to call on app init
+   - [x] Added TypeScript binding for `shouldSyncOnOpen()` command
+   - [x] Enables frontend to trigger automatic sync if needed on app open
+   - [x] Includes unit tests for sync logic
+   - **Note**: Frontend integration for auto-sync on open needed next
+
+4. **Build & Test Verification**
    - [x] `cargo check` passes without errors
    - [x] `npm test` passes (all 9 TypeScript tests)
-   - [x] `cargo test` passes (all 7 Rust unit tests)
+   - [x] `cargo test` passes (all 8 Rust unit tests, +1 new orchestrator test)
    - [x] No breaking changes to existing functionality
+   - [x] Version tagged 0.0.8
 
 ---
 
@@ -531,31 +542,40 @@
 
 ### Next Priorities (for next developer)
 
-1. **Track D - Sync Orchestration**: Implement background sync scheduling and error recovery
-   - Priority: HIGH — unblocks continuous data refresh
-   - Check on app open if >24h since last sync
-   - Configurable frequency (manual, 12h, 24h, on-open)
-   - Retry with exponential backoff for transient failures
-   - Sync status indicator in Header (spinner, error badge)
+1. **Track D Phase 2 - Frontend Auto-Sync Integration**: Wire up backend sync check to UI
+   - Priority: HIGH — unblocks auto-sync on app open
+   - Call `shouldSyncOnOpen()` in App.tsx on mount
+   - Automatically trigger `syncSimpleFin()` if check returns true
+   - Display sync progress in Header (spinner during sync)
+   - Display last sync timestamp and error messages in Header
+   - Wire `getSyncStatus()` polling for real-time progress updates
 
-2. **Account-to-Transaction Mapping**: Solve SimpleFIN flat-list limitation
+2. **Track D Phase 3 - Frequency-Based Scheduling**: Implement periodic sync during app use
+   - Priority: MEDIUM — improves UX for long-running sessions
+   - Read sync_frequency setting from database (manual/on-open/12h/24h)
+   - Implement timer-based scheduler for 12h/24h frequencies
+   - Execute sync in background without blocking UI
+   - Update Header with sync status
+
+3. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
    - Priority: HIGH — critical for multi-account accuracy
-   - SimpleFIN returns no account_id with transactions
-   - Implement user-guided mapping on first sync
-   - Update sync_simplefin to populate transaction.account_id before insert
+   - Implement user-guided mapping on first sync with multiple accounts
+   - Show accounts picker for unmapped transactions
+   - Allow bulk assignment to accounts
+   - Save account mapping preference to prevent re-prompting
 
-3. **Track E - Integration Tests**: Expand coverage beyond unit tests
+4. **Track E - Integration Tests**: Expand coverage beyond unit tests
    - Priority: MEDIUM — confidence for future changes
    - Component tests (SettingsModal, TransactionList, Header)
    - SimpleFIN sync with mocked API responses
    - Database integration tests (migrations, queries)
    - Error-path tests (timeouts, network failures)
 
-4. **End-to-End Validation**: Real data testing
-   - Test dashboard with real SimpleFIN data
-   - Verify metrics calculations against manual scenarios
-   - Cross-platform keychain testing (macOS/Windows/Linux)
-   - Performance profiling with 1K+ transactions
+5. **Async Sync State Tracking**: Implement true in_progress flag
+   - Priority: MEDIUM — enables real-time progress display
+   - Use Arc<Mutex<bool>> for thread-safe in_progress flag
+   - Update flag when sync starts/ends
+   - Return true in get_sync_status during active sync
 
 ### Build & Test Status
 - Frontend: npm build ✓ / npm test ✓ (9 TypeScript tests passing)

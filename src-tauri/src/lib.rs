@@ -6,5 +6,6 @@ pub mod commands;
 pub mod models;
 pub mod calculator;
 pub mod keychain;
+pub mod sync_orchestrator;
 
 pub use errors::{AppError, Result};

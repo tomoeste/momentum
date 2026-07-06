@@ -622,3 +622,9 @@ pub async fn get_sync_status(db: State<'_, Database>) -> Result<SyncStatus> {
         transaction_count: 0, // TODO: Get from last sync_log entry
     })
 }
+
+#[tauri::command]
+pub async fn should_sync_on_open(db: State<'_, Database>) -> Result<bool> {
+    // Check if sync should run based on last sync time (>24h threshold)
+    crate::sync_orchestrator::SyncOrchestrator::should_sync_on_open(&db)
+}

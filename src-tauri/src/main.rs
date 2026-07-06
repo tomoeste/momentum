@@ -12,6 +12,7 @@ mod commands;
 mod models;
 mod calculator;
 mod keychain;
+mod sync_orchestrator;
 
 use db::Database;
 use llm::LlmClient;
@@ -63,6 +64,7 @@ fn main() {
             commands::get_simplefin_status,
             commands::disconnect_simplefin,
             commands::get_sync_status,
+            commands::should_sync_on_open,
             commands::save_llm_config,
             commands::save_sync_settings,
             commands::save_ui_preferences,
