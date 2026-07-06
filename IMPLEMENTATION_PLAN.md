@@ -1,8 +1,57 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.9 (Track D Phase 3: async sync state tracking)
+**Version**: 0.0.10 (Account-to-Transaction Mapping UI)
+
+## Session 0.0.10 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **Account-to-Transaction Mapping UI** (Track A continuation)
+   - [x] Created database schema: `transaction_mappings` table with columns:
+     - `id` (primary key)
+     - `transaction_id` (FK -> raw_transactions)
+     - `account_id` (FK -> accounts)
+     - `created_at`, `updated_at` timestamps
+   - [x] Implemented backend database methods:
+     - `get_unmapped_transactions()` — retrieves transactions without account_id
+     - `record_transaction_mapping(transaction_id, account_id)` — saves user mapping
+     - `bulk_update_transaction_accounts(mappings)` — batch update transactions with mapped accounts
+   - [x] Implemented Tauri commands:
+     - `get_transaction_mapping_suggestions` — suggests unmapped transactions + primary account fallback
+     - `submit_transaction_mappings` — saves user-selected mappings to database
+   - [x] Created `AccountMappingModal.tsx` component with:
+     - Table display of unmapped transactions (merchant, category, amount)
+     - Account selector dropdown per row
+     - Save button to submit batch mappings
+     - Modal flow: triggered after sync if unmapped transactions exist
+   - [x] Frontend integration:
+     - Integrated AccountMappingModal into App.tsx
+     - Added modal trigger after successful sync
+     - Displays when unmapped transactions > 0
+     - Closes after mapping submission
+   - [x] TypeScript updates:
+     - Added types: `Transaction`, `TransactionMapping`, `MappingSuggestion` in tauri-commands.ts
+     - Generated bindings for new commands with proper DTO types
+   - [x] All tests passing:
+     - 10 Rust unit tests (all passing)
+     - 9 TypeScript tests (all passing)
+   - [x] Build verification:
+     - `cargo check` passes without errors
+     - `cargo test` passes (10 Rust tests)
+     - `npm build` passes (Vite build succeeds, no TS errors)
+     - `npm test` passes (all 9 TypeScript tests)
+
+2. **Build & Test Verification**
+   - [x] `cargo check` passes without errors or warnings
+   - [x] `cargo test` passes with 10 Rust unit tests
+   - [x] `npm build` passes (Vite build succeeds, no TS errors)
+   - [x] `npm test` passes (all 9 TypeScript tests)
+   - [x] No breaking changes to existing functionality
+   - [x] Ready for version tag 0.0.10
+
+---
 
 ## Session 0.0.9 Completion Summary
 
@@ -603,27 +652,27 @@
 
 ### Next Priorities (for next developer)
 
-1. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
-   - Priority: HIGH — critical for multi-account accuracy
-   - Implement user-guided mapping UI for multi-account scenarios
-   - Show account picker modal on first sync with multiple accounts
-   - Allow bulk transaction-to-account assignment
-   - Save mapping preference to prevent re-prompting
-   - **Already implemented**: Basic mapping assigns to primary account with warning
-
-2. **Error Display & Recovery**: Improve error handling in UI
+1. **Error Display & Recovery**: Improve error handling in UI
    - Priority: MEDIUM — improves user experience
    - Display sync errors prominently in Header or dashboard
    - Add retry button for failed syncs
    - Show last error message from get_sync_status
    - Implement error toast notifications
 
-3. **Track E - Integration Tests**: Expand coverage beyond unit tests
+2. **Track E - Integration Tests**: Expand coverage beyond unit tests
    - Priority: MEDIUM — confidence for future changes
    - Component tests (SettingsModal, TransactionList, Header)
    - SimpleFIN sync with mocked API responses
    - Database integration tests (migrations, queries)
    - Error-path tests (timeouts, network failures)
+
+3. **Performance & Polish**: Optimize performance and refine user experience
+   - Priority: MEDIUM — performance optimization + polish
+   - Performance profiling with real data (1K+ transactions)
+   - Virtualized table for TransactionList (optional optimization)
+   - "Recategorize all" bulk action with progress bar
+   - Loading states + spinners across modals
+   - Error boundary component for fault isolation
 
 ### Completed in Session 0.0.8
 - [x] get_sync_status command (was missing from backend)
