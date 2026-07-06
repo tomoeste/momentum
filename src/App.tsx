@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { getDashboardMetrics, getOpportunityScenarios, Period, DashboardMetrics, GetOpportunityScenariosResponse } from './lib/tauri-commands'
+import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, Period, DashboardMetrics, GetOpportunityScenariosResponse } from './lib/tauri-commands'
+import { Header } from './components/Header'
+import { SettingsModal } from './components/SettingsModal'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -16,7 +18,9 @@ function App() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [scenarios, setScenarios] = useState<GetOpportunityScenariosResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -42,18 +46,32 @@ function App() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="border-b border-gray-800 p-4">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Momentum</h1>
-          <div className="text-sm text-gray-400">
-            Last sync: <span>{metrics?.last_sync ? new Date(metrics.last_sync).toLocaleString() : 'Never'}</span>
-          </div>
-        </div>
-      </header>
+  async function handleSync() {
+    setSyncing(true)
+    setError(null)
 
-      <main className="p-6">
+    try {
+      await syncSimpleFin({ days_back: 90 })
+      // Reload data after sync
+      await loadData()
+    } catch (err) {
+      console.error('Failed to sync:', err)
+      setError(err instanceof Error ? err.message : 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+      <Header
+        lastSync={metrics?.last_sync || null}
+        onSettingsClick={() => setSettingsOpen(true)}
+        onSyncClick={handleSync}
+        isSyncing={syncing}
+      />
+
+      <main className="p-6 flex-1">
         {error && (
           <div className="mb-4 p-4 bg-red-900 bg-opacity-20 border border-red-500 rounded-lg text-red-300">
             {error}
@@ -155,6 +173,8 @@ function App() {
           </section>
         )}
       </main>
+
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

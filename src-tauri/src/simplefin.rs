@@ -193,6 +193,12 @@ impl SimpleFin {
         Ok(transactions)
     }
 
+    pub async fn test_connection(&self) -> Result<()> {
+        // Test by fetching accounts to validate credentials
+        self.fetch_accounts().await?;
+        Ok(())
+    }
+
     pub fn validate_access_url(access_url: &str) -> Result<()> {
         if !access_url.starts_with("https://") {
             return Err(AppError::Validation(

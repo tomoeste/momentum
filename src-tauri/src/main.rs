@@ -12,6 +12,7 @@ mod llm;
 mod commands;
 mod models;
 mod calculator;
+mod keychain;
 
 use db::Database;
 

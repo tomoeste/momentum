@@ -17,10 +17,11 @@ pub struct LlmClient {
 
 impl LlmClient {
     pub fn new(ollama_url: Option<String>, api_key: Option<String>) -> Self {
+        let use_local_first = ollama_url.is_some();
         LlmClient {
             ollama_url,
             api_key,
-            use_local_first: ollama_url.is_some(),
+            use_local_first,
         }
     }
 

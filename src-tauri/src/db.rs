@@ -1,6 +1,6 @@
 use rusqlite::{Connection, params, OptionalExtension};
 use std::sync::Mutex;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use crate::errors::{AppError, Result};
 use crate::models::*;
 
@@ -112,8 +112,8 @@ impl Database {
                     organization: row.get(4)?,
                     balance: row.get(5)?,
                     last_updated: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
-                        .ok()
-                        .map(|dt| dt.with_timezone(&Utc)),
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
                 })
             })
             .map_err(|e| AppError::Database(e.to_string()))?
@@ -173,8 +173,8 @@ impl Database {
                     interest_rate: row.get(5)?,
                     minimum_payment: row.get(6)?,
                     last_updated: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
-                        .ok()
-                        .map(|dt| dt.with_timezone(&Utc)),
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
                 })
             })
             .map_err(|e| AppError::Database(e.to_string()))?
@@ -460,12 +460,12 @@ impl Database {
         let mut stmt = conn.prepare(sql).map_err(|e| AppError::Database(e.to_string()))?;
         let result = stmt.query_row([], |row| {
             let date_str: String = row.get(0)?;
-            chrono::DateTime::parse_from_rfc3339(&date_str)
-                .ok()
+            Ok(chrono::DateTime::parse_from_rfc3339(&date_str)
                 .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()))
         }).optional().map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(result.flatten())
+        Ok(result)
     }
 
     pub fn insert_sync_log(&self, status: &str, transaction_count: i32, error_message: Option<&str>, duration_ms: i32) -> Result<()> {

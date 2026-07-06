@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
+use chrono::{Utc, Duration};
 use tauri::State;
 use crate::errors::{Result, AppError};
 use crate::models::*;
@@ -53,7 +53,6 @@ pub struct RecategorizeTransactionRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SyncSimplefinRequest {
-    pub access_url: String,
     pub days_back: Option<u32>,  // Default: 90 days
 }
 
@@ -64,7 +63,20 @@ pub struct ClaimSetupTokenRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaimSetupTokenResponse {
-    pub access_url: String,
+    pub success: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SimpleFINStatusResponse {
+    pub connected: bool,
+    pub account_count: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisconnectSimpleFINResponse {
+    pub success: bool,
+    pub message: String,
 }
 
 // Tauri command handlers
@@ -133,7 +145,7 @@ pub async fn get_transactions(
     )?;
 
     // Filter by date range if provided
-    if let (Some(start_str), _) | (_, Some(end_str)) = (&req.start_date, &req.end_date) {
+    if req.start_date.is_some() || req.end_date.is_some() {
         let start = req.start_date.as_ref().and_then(|s| {
             chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok().map(|d| d.and_hms_opt(0, 0, 0).unwrap_or(chrono::NaiveDateTime::MIN).and_utc())
         });
@@ -168,8 +180,23 @@ pub async fn get_transactions(
 
 #[tauri::command]
 pub async fn claim_setup_token(req: ClaimSetupTokenRequest) -> Result<ClaimSetupTokenResponse> {
+    // Claim the setup token from SimpleFIN
     let access_url = crate::simplefin::SimpleFin::claim_token(&req.setup_token).await?;
-    Ok(ClaimSetupTokenResponse { access_url })
+
+    // Validate access URL format
+    crate::simplefin::SimpleFin::validate_access_url(&access_url)?;
+
+    // Test connection to ensure credentials are valid
+    let client = crate::simplefin::SimpleFin::new(access_url.clone());
+    client.test_connection().await?;
+
+    // Store in keychain (never expose to frontend)
+    crate::keychain::Keychain::store_simplefin_access_url(&access_url)?;
+
+    Ok(ClaimSetupTokenResponse {
+        success: true,
+        message: "SimpleFIN connected successfully".to_string(),
+    })
 }
 
 #[tauri::command]
@@ -180,11 +207,14 @@ pub async fn sync_simplefin(
     let start_time = std::time::Instant::now();
     let days_back = req.days_back.unwrap_or(90);
 
+    // Retrieve access URL from keychain
+    let access_url = crate::keychain::Keychain::retrieve_simplefin_access_url()?;
+
     // Validate access URL format
-    crate::simplefin::SimpleFin::validate_access_url(&req.access_url)?;
+    crate::simplefin::SimpleFin::validate_access_url(&access_url)?;
 
     // Create SimpleFIN client
-    let client = crate::simplefin::SimpleFin::new(req.access_url);
+    let client = crate::simplefin::SimpleFin::new(access_url);
 
     // Fetch accounts
     let accounts = match client.fetch_accounts().await {
@@ -215,7 +245,7 @@ pub async fn sync_simplefin(
     };
 
     // Upsert transactions into database
-    for mut txn in transactions {
+    for txn in transactions {
         // SimpleFIN doesn't give account_id; we'd need to match by merchant or prompt user
         // For now, skip or log this limitation
         if let Err(e) = db.insert_transaction(&txn) {
@@ -345,5 +375,34 @@ pub async fn get_opportunity_scenarios(db: State<'_, Database>) -> Result<GetOpp
             .collect(),
         total_debt,
         weighted_apr,
+    })
+}
+
+#[tauri::command]
+pub async fn get_simplefin_status(db: State<'_, Database>) -> Result<SimpleFINStatusResponse> {
+    let connected = crate::keychain::Keychain::has_simplefin_access_url()?;
+
+    let account_count = if connected {
+        match db.get_accounts() {
+            Ok(accounts) => Some(accounts.len()),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+
+    Ok(SimpleFINStatusResponse {
+        connected,
+        account_count,
+    })
+}
+
+#[tauri::command]
+pub async fn disconnect_simplefin() -> Result<DisconnectSimpleFINResponse> {
+    crate::keychain::Keychain::delete_simplefin_access_url()?;
+
+    Ok(DisconnectSimpleFINResponse {
+        success: true,
+        message: "SimpleFIN disconnected successfully".to_string(),
     })
 }

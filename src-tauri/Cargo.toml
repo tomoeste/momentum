@@ -10,7 +10,7 @@ rust-version = "1.96"
 tauri-build = { version = "2.1", features = [] }
 
 [dependencies]
-tauri = { version = "2.1", features = ["custom-protocol", "macos-private-api"] }
+tauri = { version = "2.1", features = ["custom-protocol"] }
 tauri-plugin-shell = "2.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -24,6 +24,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 anyhow = "1.0"
 thiserror = "1.0"
 dirs = "5.0"
+keyring = "2.0"
 
 [lib]
 name = "momentum_lib"

@@ -48,9 +48,3 @@ impl From<serde_json::Error> for AppError {
         AppError::Internal(err.to_string())
     }
 }
-
-impl From<AppError> for tauri::ipc::InvokeError {
-    fn from(err: AppError) -> Self {
-        tauri::ipc::InvokeError::from(err.to_string())
-    }
-}

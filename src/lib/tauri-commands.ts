@@ -140,7 +140,6 @@ export interface RecategorizeTransactionRequest {
 }
 
 export interface SyncSimplefinRequest {
-  access_url: string
   days_back?: number  // Default: 90 days
 }
 
@@ -149,7 +148,18 @@ export interface ClaimSetupTokenRequest {
 }
 
 export interface ClaimSetupTokenResponse {
-  access_url: string
+  success: boolean
+  message: string
+}
+
+export interface SimpleFINStatusResponse {
+  connected: boolean
+  account_count?: number
+}
+
+export interface DisconnectSimpleFINResponse {
+  success: boolean
+  message: string
 }
 
 // Command functions
@@ -187,4 +197,12 @@ export async function getSyncStatus(): Promise<SyncStatus> {
 
 export async function getOpportunityScenarios(): Promise<GetOpportunityScenariosResponse> {
   return invoke<GetOpportunityScenariosResponse>('get_opportunity_scenarios')
+}
+
+export async function getSimpleFINStatus(): Promise<SimpleFINStatusResponse> {
+  return invoke<SimpleFINStatusResponse>('get_simplefin_status')
+}
+
+export async function disconnectSimpleFIN(): Promise<DisconnectSimpleFINResponse> {
+  return invoke<DisconnectSimpleFINResponse>('disconnect_simplefin')
 }

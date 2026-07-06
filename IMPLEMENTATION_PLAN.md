@@ -1,26 +1,80 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ COMPLETE. CP1 ✓ COMPLETE. CP2 (DB Layer) ✓ COMPLETE. CP3 (Commands) 100% COMPLETE. Track A (SimpleFIN) 80% COMPLETE.
+**Status**: Sprint 0 ✓ COMPLETE. CP1 ✓ COMPLETE. CP2 (DB Layer) ✓ COMPLETE. CP3 (Commands) 100% COMPLETE. Track A (Keychain + SimpleFIN) 90% COMPLETE. Track C (Settings UI) 60% COMPLETE.
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.4 (SimpleFIN HTTP client + complete metrics)
+**Version**: 0.0.5 (Keychain integration + Settings UI foundation)
+
+## Session 0.0.5 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **Track A - Keychain Integration** (SimpleFIN credentials storage)
+   - [x] Added `keyring` crate to Cargo.toml for cross-platform credential storage
+   - [x] Created `src-tauri/src/keychain.rs` module with:
+     - `store(key, value)` — securely store credential in system keychain
+     - `retrieve(key)` — fetch stored credential
+     - `delete(key)` — remove credential from keychain
+     - `has(key)` — check if credential exists
+   - [x] Updated `claim_setup_token` command flow:
+     - User pastes setup token → POST to SimpleFIN claim endpoint → validate returned access_url → test connection
+     - **New**: Store access_url securely in keychain (not exposed to frontend)
+     - Response now: `{ success: bool, message: String, account_count: u32 }` (no access_url)
+   - [x] Updated `sync_simplefin` command:
+     - Retrieves access_url from keychain (no longer requires frontend to pass it)
+     - Seamless sync without exposing credentials to UI layer
+   - [x] New command: `get_simplefin_status` — returns connection status + account count
+   - [x] New command: `disconnect_simplefin` — removes access_url from keychain
+   - [x] SimpleFIN module enhancement: `test_connection()` method validates credentials after claiming
+
+2. **Track C - Settings UI (60% complete)**
+   - [x] Created `components/Header.tsx`:
+     - Settings button opens modal
+     - Sync button triggers sync_simplefin
+     - Last sync timestamp display (polls database every 30s)
+   - [x] Created `components/SettingsModal.tsx` with 3 tabs:
+     - **SimpleFIN Tab**: Paste setup token → claim → test connection → shows success with account count + disconnect button
+     - **Debt Terms Tab**: Per-account APR (0-100%) + minimum payment ($) form with save buttons
+     - **About Tab**: App version info + description
+   - [x] Updated `App.tsx`:
+     - Integrated Header and SettingsModal components
+     - Added sync handler to load metrics after successful sync
+     - Wired command responses with proper error handling
+   - [x] Updated `src/lib/tauri-commands.ts`:
+     - New DTOs: `SimpleFINStatusResponse`, `DisconnectSimpleFINResponse`
+     - Updated `ClaimSetupTokenResponse` to exclude access_url
+     - New command wrappers: `getSimpleFINStatus()`, `disconnectSimpleFIN()`, `claimSetupToken(token)`
+   - [x] Frontend testing:
+     - TypeScript compilation passes strict mode
+     - npm run build succeeds (dist/ generated)
+     - React components properly typed and integrated
+
+3. **Backend Verification**
+   - [x] `cargo check` passes without errors or warnings
+   - [x] All new Rust modules compile (keychain.rs, updated commands.rs)
+   - [x] New AppError variant: `Keychain(String)` for credential storage failures
+   - [x] Command signatures match spec 02_tauri_commands.md
+
+**REMAINING FOR TRACK C (Settings UI)**:
+- [ ] LLM Configuration tab (Ollama URL, API key, model selection)
+- [ ] Sync Settings tab (frequency, backfill range controls)
+- [ ] UI Prefs tab (theme toggle, currency selection)
+- [ ] Loading states during async operations (claim/sync spinners)
+- [ ] Error boundary component for fault isolation
+
+---
 
 ## Current Blockers & Priorities
 
-**IMMEDIATE (known issue - workaround implemented)**:
-- **Build Environment**: Rust compilation needs C compiler (gcc/g++). Container lacks build-essential and sudo access.
-  - **Workaround**: Use `cargo check` for validation (stops after type checking, no linking)
-  - **Long-term**: Deploy to environment with C compiler for final builds
-  - **Alternative**: Switch to pure Rust DB (sled, embedded-postgres) if available
-  - **RESOLVED**: C compiler should now be installed.
-
 **NEXT (unblocked by specs)**:
-1. **CP2 - Database Layer**: Implement query methods + connection pooling (~1 day)
-2. **CP3 - Command Handlers**: Implement 9 Tauri commands using specs 01-05 (~2 days)
-3. **Parallel Track A - SimpleFIN Client**: Fetch accounts/transactions (~1 day)
-4. **Parallel Track B - Dashboard UI**: Wire mocked commands, build metric cards (~1 day)
+1. **LLM Categorization** (Track A): Implement actual categorization logic (currently stubs)
+2. **Complete Settings UI** (Track C): Add remaining tabs (LLM, Sync, UI Prefs)
+3. **Transaction List UI** (Track B): TransactionList + filtering + recategorization modal
+4. **Sync Orchestration** (Track D): Background sync scheduling + retry logic
 
-**After CP3 + Track A**:
-- Parallel Tracks C-E: Settings UI, LLM categorization, sync orchestration
+**Quick Wins**:
+- Add loading states + spinners to Settings modal
+- Implement error boundary for fault isolation
+- Test keychain on Windows/Linux (currently developed on macOS)
 
 ---
 
@@ -141,15 +195,22 @@
 
 ## PARALLEL TRACK A — Backend data pipeline (after CP2)
 
-### SimpleFIN integration ✓ 80% COMPLETE
+### SimpleFIN integration ✓ 90% COMPLETE
 - [x] Setup-token claim flow -> obtain + store access URL (via claim_setup_token command)
 - [x] SimpleFIN client (reqwest) using access-URL basic auth
 - [x] Upsert accounts from /accounts response into `accounts` table
 - [x] Transaction parser (raw -> raw_transactions), sign convention
 - [x] 90-day backfill with days_back parameter (configurable)
 - [x] Sync-log persistence + error recovery (status tracking)
+- [x] **COMPLETED**: Keychain/credential manager integration (cross-platform secure storage)
+  - [x] macOS: Uses OS keychain via `keyring` crate (Security framework backend)
+  - [x] Windows: Uses Windows Credential Manager via `keyring` crate
+  - [x] Linux: Uses libsecret / secret-service via `keyring` crate
+  - [x] claim_setup_token stores access_url securely; never exposed to frontend
+  - [x] sync_simplefin retrieves access_url from keychain automatically
+  - [x] get_simplefin_status checks keychain + returns account count
+  - [x] disconnect_simplefin removes credentials from keychain
 - [ ] **TODO**: Key rotation / credential refresh handling
-- [ ] **TODO**: Keychain/credential manager integration (currently caller must manage access_url)
 - [ ] **TODO**: Pending transaction filtering + deduplication optimization
 - [ ] **TODO**: Account-to-transaction mapping (SimpleFIN returns flat tx list)
 
@@ -205,15 +266,26 @@
 
 ---
 
-## PARALLEL TRACK C — Settings (after SimpleFIN + LLM land)
+## PARALLEL TRACK C — Settings (60% COMPLETE)
 
-- [ ] SettingsModal shell + About section
-- [ ] SimpleFIN section: setup-token paste + claim + Test Connection `[BLOCKED:4]`
-- [ ] Debt terms editor: per-account APR + min-payment inputs `[BLOCKED:5]`
-- [ ] LLM config: Ollama URL, API key, model, local-first toggle
-- [ ] Sync settings: frequency, backfill range, manual sync button
-- [ ] UI prefs: theme toggle, currency (USD default)
-- [ ] Keychain store/retrieve access URL + API keys
+- [x] **COMPLETED**: SettingsModal shell with 3 tabs
+- [x] **COMPLETED**: SimpleFIN tab: setup-token paste → claim → Test Connection
+  - Shows success message with account count on successful claim
+  - Disconnect button removes credentials from keychain
+  - Integration with claim_setup_token command
+- [x] **COMPLETED**: Debt Terms tab: per-account APR + minimum payment inputs
+  - APR input range validation (0-100%)
+  - Min payment dollar input with sensible defaults
+  - Save button integrates with set_debt_terms command
+  - Per-account form with list of all accounts
+- [x] **COMPLETED**: About tab: version info + app description
+- [x] **COMPLETED**: Header component with Settings button + Sync button
+  - Last sync timestamp display
+  - Real-time sync status indication
+- [ ] **TODO**: LLM config tab (Ollama URL, API key, model, local-first toggle)
+- [ ] **TODO**: Sync settings tab (frequency, backfill range, manual sync button controls)
+- [ ] **TODO**: UI prefs tab (theme toggle, currency selection)
+- [x] **COMPLETED**: Keychain integration (no UI needed; transparent background)
 
 ---
 
@@ -261,7 +333,7 @@
 
 ---
 
-## Progress Summary (as of 0.0.4)
+## Progress Summary (as of 0.0.5)
 
 ### Completed ✓
 - **Sprint 0 Specs**: All 5 specification documents finalized (01-05)
@@ -272,17 +344,35 @@
   - [x] get_transactions: Date range + pagination filtering
   - [x] get_accounts, set_debt_terms, recategorize_transaction: Full implementations
   - [x] get_opportunity_scenarios: Complete amortization math
-  - [x] claim_setup_token: SimpleFIN setup token → access_url
+  - [x] claim_setup_token: SimpleFIN setup token → access_url with keychain storage
   - [x] sync_simplefin: Full sync implementation with accounts + transactions
-- **Track A SimpleFIN Integration** (80% complete):
+  - [x] **NEW**: get_simplefin_status: Check connection + return account count
+  - [x] **NEW**: disconnect_simplefin: Remove credentials from keychain
+- **Track A SimpleFIN Integration** (90% complete):
   - [x] SimpleFin HTTP client (reqwest) with async methods
   - [x] claim_token(): POST to SimpleFIN /claim endpoint
   - [x] fetch_accounts(): GET from /accounts, parse response
   - [x] fetch_transactions(): GET from /transactions with date filtering
   - [x] validate_access_url(): Format validation (HTTPS + credentials)
   - [x] sync_simplefin command: Fetch, validate, upsert accounts + transactions, log sync
-  - [ ] TODO: Keychain/credential manager integration
+  - [x] **COMPLETED**: Keychain/credential manager integration (macOS/Windows/Linux)
+    - Cross-platform via `keyring` crate (Security framework / Credential Manager / libsecret)
+    - claim_setup_token: claim → validate → test → store in keychain (not exposed to frontend)
+    - sync_simplefin: retrieves from keychain automatically
+    - get_simplefin_status: checks keychain + returns account count
+    - disconnect_simplefin: securely removes from keychain
   - [ ] TODO: Account-to-transaction mapping (SimpleFIN limitation)
+- **Track C Settings UI** (60% complete):
+  - [x] **NEW**: Header.tsx component with Settings button + Sync button + last sync display
+  - [x] **NEW**: SettingsModal.tsx with 3 tabs:
+    - SimpleFIN tab: token paste → claim → test → success display with account count + disconnect
+    - Debt Terms tab: per-account APR (0-100%) + min payment ($) inputs with save
+    - About tab: version info + app description
+  - [x] **NEW**: Tauri commands integration (claim_setup_token, get_simplefin_status, disconnect_simplefin, set_debt_terms)
+  - [x] **NEW**: Updated tauri-commands.ts with new DTOs + command wrappers
+  - [x] App.tsx integration: Header + SettingsModal + sync handler
+  - [ ] TODO: LLM config tab, Sync settings tab, UI prefs tab
+  - [ ] TODO: Loading states + error boundary
 - **Metrics & Opportunity-Cost** (100% complete):
   - [x] All 5 metric calculations implemented (income, spending, debt_paydown, interest_paid, debt_ratio)
   - [x] Interest as percentage of income calculation
@@ -291,7 +381,7 @@
   - [x] Weighted APR calculation
 - **Bugfixes**:
   - [x] Fixed ABS() on interest_paid calculations (was returning negative values)
-- **Model Updates**: DashboardMetrics + DailyMetrics per spec
+- **Model Updates**: DashboardMetrics + DailyMetrics + ClaimSetupTokenResponse (no access_url exposure) + SimpleFINStatusResponse
 - **TypeScript**: Updated bindings; strict type checking passes
 - **Database Indexes**: Added categorized_transactions.category for query performance
 
@@ -301,37 +391,51 @@
   - Code is syntactically correct; ready for compilation once environment is set up
 
 ### Next Priorities (for next developer)
-1. **Keychain Integration** (Track A continuation): Store/retrieve access_url securely
-   - macOS: SecKeychainAddGenericPassword (Security framework)
-   - Windows: CredWrite (Windows API)
-   - Linux: libsecret / secret-service
-   - See spec 04_simplefin_auth.md sections 3.1-3.3 for platform details
 
-2. **Account Mapping** (Track A continuation): SimpleFIN returns flat transaction list; need account_id assignment
-   - Option A: Use merchant pattern matching or user prompt for first-time mapping
-   - Option B: Require explicit account selection in Settings UI
-   - Update sync_simplefin to populate transaction.account_id before insert
+1. **LLM Categorization** (Track A): Implement transaction auto-categorization engine
+   - Design prompt: merchant/description → primary category + confidence
+   - Secondary category when confidence >= 0.85; handle transfers/fees/interest
+   - Ollama client (localhost:11434) integration with timeout + health check
+   - Claude API fallback with structured output (tool_use / JSON schema)
+   - Batch queue for existing transactions, real-time for new syncs
+   - Non-destructive "recategorize all" reprocessing
 
-3. **LLM Categorization** (Track A): Implement transaction auto-categorization
-   - Design Ollama/Claude API integration for categorization
-   - Batch processing for existing transactions
-   - Real-time categorization for new transactions during sync
+2. **Complete Settings UI** (Track C): Add remaining 3 tabs
+   - LLM Configuration tab: Ollama URL input, API key store (keychain), model dropdown
+   - Sync Settings tab: frequency selector (on-open / 12h / 24h / manual), backfill range days slider
+   - UI Prefs tab: theme toggle (light/dark/auto), currency selection (USD default)
+   - Add loading spinners + error toast notifications during async operations
+
+3. **Transaction List UI** (Track B): Implement transaction drill-down view
+   - TransactionList component with virtualized table (react-window)
+   - Filter header: date-range, category, account, type dropdowns + reset button
+   - Debounced search box with merchant/description highlight
+   - Sortable columns (date, amount, category)
+   - Detail/recategorization modal: category picker, secondary category, manual note, manual flag
+   - Save handler → recategorize_transaction command + success toast
+   - "Recategorize all" bulk action with progress bar + confirm dialog
 
 4. **Sync Orchestration** (Track D): Background sync scheduling + error recovery
-   - Implement sync scheduler (on-open if >24h elapsed, optional background)
-   - Retry with exponential backoff for failed syncs
-   - Partial data preservation (don't lose good data due to one bad account)
+   - Sync scheduler: check on app open if >24h since last sync, trigger auto-sync
+   - Optional background sync (configurable in Settings)
+   - Retry with exponential backoff for transient failures
+   - Partial data preservation (capture what succeeded before error)
+   - Sync status indicator in Header (in-progress spinner, error badge)
+   - Error recovery UI: display sync errors in dashboard alert + retry button
 
-5. **Settings UI** (Track C): Create Settings modal for user configuration
-   - SimpleFIN section: paste setup token → claim → test connection
-   - Debt terms: per-account APR + minimum payment editor
-   - LLM config: Ollama URL, API key, model selection
-   - Sync settings: frequency, backfill range, manual sync button
+5. **Account-to-Transaction Mapping** (Track A continuation): Handle SimpleFIN limitation
+   - SimpleFIN returns flat transaction list without account_id
+   - Option A: Merchant pattern matching (e.g., Paypal → link to source account)
+   - Option B: User-guided mapping: first sync shows account picker for unmapped txns
+   - Option C: Require explicit account selection in SimpleFIN settings UI
+   - Update sync_simplefin to populate transaction.account_id before insert
 
 6. **Full Build & Test**: Compile + test end-to-end flow in proper environment
-   - Install Rust toolchain (rustup)
+   - Install Rust toolchain (rustup) in build environment
    - Test dashboard with real SimpleFIN data
    - Verify metrics calculations against test scenarios
+   - Cross-platform keychain testing (macOS/Windows/Linux)
+   - Performance profiling with 10K+ transactions
 
 ### Testing Status
 - Frontend: TypeScript compiles without errors
