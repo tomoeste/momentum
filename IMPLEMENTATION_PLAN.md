@@ -1,8 +1,36 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Init ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.7 (Settings backend + test infrastructure + Claude API fallback)
+**Version**: 0.0.8 (Track D initialization + sync status + account mapping fixes)
+
+## Session 0.0.8 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **get_sync_status Command Implementation** (Track D foundation)
+   - [x] Implemented `get_sync_status` command in commands.rs that was previously undefined
+   - [x] Added `get_last_sync_info()` database method to retrieve last sync timestamp + error message
+   - [x] Registered command in main.rs invoke_handler (was missing)
+   - [x] Returns SyncStatus with last_sync timestamp and error message for UI display
+   - [x] Unblocks sync progress indicator in Header component
+   - **Note**: in_progress flag currently always false; will implement true async tracking in next phase
+
+2. **Account-to-Transaction Mapping Fix** (Critical bug fix)
+   - [x] Fixed SimpleFIN transaction assignment: now assigns to primary account instead of empty string
+   - [x] For single-account scenarios: all transactions correctly assigned to that account
+   - [x] For multi-account scenarios: all transactions assigned to primary account with warning log
+   - [x] Prevents FK constraint violations on insert
+   - [x] Enables transaction queries to work correctly
+   - **Future**: User-guided mapping UI for multi-account disambiguation
+
+3. **Build & Test Verification**
+   - [x] `cargo check` passes without errors
+   - [x] `npm test` passes (all 9 TypeScript tests)
+   - [x] `cargo test` passes (all 7 Rust unit tests)
+   - [x] No breaking changes to existing functionality
+
+---
 
 ## Session 0.0.7 Completion Summary
 
@@ -492,10 +520,14 @@
 
 ### Known Issues (0.0.7)
 - **Account-to-Transaction Mapping**: SimpleFIN returns transactions without account_id
-  - Workaround: Pending user-guided mapping UI for first sync (Track D continuation)
-  - Impact: All transactions initially assigned to default account until mapped
+  - Current implementation (0.0.8 prep): Assigns all transactions to primary account; logs warning for multi-account scenarios
+  - Future: User-guided mapping UI for multi-account disambiguation (Track D continuation)
+  - Impact: Works correctly for single-account users; multi-account users need mapping UI
 - **Performance**: Not yet tested with 1K+ transactions
   - Impact: Unknown if pagination/virtualization needed for large datasets
+- **Sync Progress Tracking**: sync_simplefin is blocking; no real-time progress updates
+  - Current implementation: get_sync_status returns last sync info only (in_progress flag always false)
+  - Future: Implement async sync with in-memory state tracking for progress display
 
 ### Next Priorities (for next developer)
 

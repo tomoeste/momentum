@@ -256,8 +256,18 @@ pub async fn sync_simplefin(
         }
     }
 
+    // Get the account IDs for mapping transactions
+    let fetched_accounts = match db.get_accounts() {
+        Ok(accts) => accts,
+        Err(e) => {
+            let error_msg = format!("Failed to retrieve accounts after upsert: {:?}", e);
+            db.insert_sync_log("failed", transaction_count, Some(&error_msg), start_time.elapsed().as_millis() as i32)?;
+            return Err(e);
+        }
+    };
+
     // Fetch transactions
-    let transactions = match client.fetch_transactions(days_back).await {
+    let mut transactions = match client.fetch_transactions(days_back).await {
         Ok(txns) => txns,
         Err(e) => {
             let error_msg = format!("{:?}", e);
@@ -266,10 +276,31 @@ pub async fn sync_simplefin(
         }
     };
 
+    // Map transactions to accounts
+    // SimpleFIN returns a flat transaction list without account_id
+    // For now: if there's exactly one account, assign all transactions to it
+    // For multiple accounts, assign to first account and log warning
+    if !fetched_accounts.is_empty() {
+        let default_account_id = fetched_accounts[0].id.clone();
+        for txn in &mut transactions {
+            txn.account_id = default_account_id.clone();
+        }
+        if fetched_accounts.len() > 1 {
+            tracing::warn!(
+                "SimpleFIN returned {} accounts. Assigning all transactions to primary account '{}'. \
+                 For accurate multi-account support, user-guided mapping needed.",
+                fetched_accounts.len(),
+                default_account_id
+            );
+        }
+    } else {
+        let error_msg = "No accounts found after sync";
+        db.insert_sync_log("failed", transaction_count, Some(error_msg), start_time.elapsed().as_millis() as i32)?;
+        return Err(AppError::Database("No accounts available for transaction assignment".to_string()));
+    }
+
     // Upsert transactions and auto-categorize
     for txn in transactions {
-        // SimpleFIN doesn't give account_id; we'd need to match by merchant or prompt user
-        // For now, skip or log this limitation
         if let Err(e) = db.insert_transaction(&txn) {
             tracing::error!("Failed to insert transaction {}: {:?}", txn.id, e);
         } else {
@@ -576,5 +607,18 @@ pub async fn get_settings(db: State<'_, Database>) -> Result<AllSettings> {
         llm_config,
         sync_settings,
         ui_preferences,
+    })
+}
+
+#[tauri::command]
+pub async fn get_sync_status(db: State<'_, Database>) -> Result<SyncStatus> {
+    // Get the last sync record from the database
+    let last_sync_info = db.get_last_sync_info()?;
+
+    Ok(SyncStatus {
+        in_progress: false, // TODO: Implement in-memory sync state tracking
+        last_sync: last_sync_info.as_ref().map(|(ts, _)| *ts),
+        last_error: last_sync_info.as_ref().and_then(|(_, err)| err.clone()),
+        transaction_count: 0, // TODO: Get from last sync_log entry
     })
 }

@@ -62,6 +62,7 @@ fn main() {
             commands::get_opportunity_scenarios,
             commands::get_simplefin_status,
             commands::disconnect_simplefin,
+            commands::get_sync_status,
             commands::save_llm_config,
             commands::save_sync_settings,
             commands::save_ui_preferences,

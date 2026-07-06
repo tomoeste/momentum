@@ -502,6 +502,23 @@ impl Database {
         Ok(result)
     }
 
+    pub fn get_last_sync_info(&self) -> Result<Option<(DateTime<Utc>, Option<String>)>> {
+        let conn = self.conn.lock().unwrap();
+        let sql = "SELECT sync_date, error_message FROM sync_log ORDER BY sync_date DESC LIMIT 1";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| AppError::Database(e.to_string()))?;
+        let result = stmt.query_row([], |row| {
+            let date_str: String = row.get(0)?;
+            let error_msg: Option<String> = row.get(1)?;
+            let dt = chrono::DateTime::parse_from_rfc3339(&date_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            Ok((dt, error_msg))
+        }).optional().map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(result)
+    }
+
     pub fn insert_sync_log(&self, status: &str, transaction_count: i32, error_message: Option<&str>, duration_ms: i32) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
