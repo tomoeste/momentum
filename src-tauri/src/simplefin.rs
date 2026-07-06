@@ -229,3 +229,57 @@ impl SimpleFin {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_setup_token_decoding_valid() {
+        // "https://auth.simplefin.com/claim?token=abc123" in base64
+        let encoded = "aHR0cHM6Ly9hdXRoLnNpbXBsZWZpbi5jb20vY2xhaW0/dG9rZW49YWJjMTIz";
+        let decoded_bytes = general_purpose::STANDARD.decode(encoded);
+
+        assert!(decoded_bytes.is_ok());
+        let decoded_str = String::from_utf8(decoded_bytes.unwrap());
+        assert!(decoded_str.is_ok());
+        assert_eq!(
+            decoded_str.unwrap(),
+            "https://auth.simplefin.com/claim?token=abc123"
+        );
+    }
+
+    #[test]
+    fn test_setup_token_decoding_invalid_base64() {
+        let invalid = "not-valid-base64!!!";
+        let decoded = general_purpose::STANDARD.decode(invalid);
+
+        assert!(decoded.is_err());
+    }
+
+    #[test]
+    fn test_validate_access_url_https_required() {
+        let http_url = "http://user:password@simplefin.com/api/v3/accounts";
+        let result = SimpleFin::validate_access_url(http_url);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("HTTPS"));
+    }
+
+    #[test]
+    fn test_validate_access_url_requires_credentials() {
+        let url_no_creds = "https://simplefin.com/api/v3/accounts";
+        let result = SimpleFin::validate_access_url(url_no_creds);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("credentials"));
+    }
+
+    #[test]
+    fn test_validate_access_url_valid() {
+        let valid_url = "https://user:password@simplefin.com/api/v3/accounts";
+        let result = SimpleFin::validate_access_url(valid_url);
+
+        assert!(result.is_ok());
+    }
+}
