@@ -84,6 +84,12 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_sync_log_sync_date ON sync_log(sync_date);
             CREATE INDEX IF NOT EXISTS idx_categorized_transactions_category ON categorized_transactions(category);
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             "
         ).map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -512,5 +518,42 @@ impl Database {
         .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    pub fn save_setting(&self, key: &str, value: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
+            params![key, value, Utc::now().to_rfc3339()],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let result: Option<String> = conn.query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        ).optional().map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(result)
+    }
+
+    pub fn get_all_settings(&self) -> Result<std::collections::HashMap<String, String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT key, value FROM settings")
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let settings = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .collect::<std::result::Result<std::collections::HashMap<_, _>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(settings)
     }
 }

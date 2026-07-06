@@ -111,8 +111,10 @@ mod tests {
     #[test]
     fn test_payoff_calculation() {
         // $5000 balance, 22% APR, $150/month payment
+        // Formula: n = -ln(1 - r*B/M) / ln(1+r)
+        // Result: ~51.99 months
         let months = calculate_payoff_months(5000.0, 0.22, 150.0);
-        assert!((months - 35.0).abs() < 2.0); // Should be ~35 months
+        assert!((months - 52.0).abs() < 1.0); // Should be ~52 months
     }
 
     #[test]
@@ -120,5 +122,42 @@ mod tests {
         // $5000 balance, 22% APR
         let interest = calculate_monthly_interest(5000.0, 0.22);
         assert!((interest - 91.67).abs() < 0.1); // Should be ~$91.67/month
+    }
+
+    #[test]
+    fn test_zero_interest_rate() {
+        // With 0% interest, payoff should be balance / payment
+        let months = calculate_payoff_months(1000.0, 0.0, 100.0);
+        assert!((months - 10.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_zero_balance() {
+        let months = calculate_payoff_months(0.0, 0.22, 150.0);
+        assert_eq!(months, 0.0);
+    }
+
+    #[test]
+    fn test_insufficient_payment() {
+        // Payment less than monthly interest should be infinite
+        let months = calculate_payoff_months(5000.0, 0.22, 50.0);
+        assert!(months.is_infinite());
+    }
+
+    #[test]
+    fn test_total_interest_calculation() {
+        let interest = calculate_total_interest(5000.0, 0.22, 150.0);
+        // Over ~35 months with decreasing balance, total interest should be ~$2000+
+        assert!(interest > 1500.0 && interest < 3000.0);
+    }
+
+    #[test]
+    fn test_interest_saved_from_acceleration() {
+        let baseline_interest = calculate_total_interest(5000.0, 0.22, 100.0);
+        let accelerated_interest = calculate_total_interest(5000.0, 0.22, 150.0);
+
+        let saved = baseline_interest - accelerated_interest;
+        assert!(saved > 0.0, "Accelerated payment should save interest");
+        assert!(saved > 500.0, "Interest saved should be significant");
     }
 }

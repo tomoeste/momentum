@@ -4,6 +4,44 @@
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
 **Version**: 0.0.5 (Keychain integration + Settings UI foundation)
 
+## Current Session (0.0.6) Focus
+
+**Unfinished items blocking full integration:**
+
+1. **SimpleFIN commands NOT registered** (Track A)
+   - `get_simplefin_status` and `disconnect_simplefin` implemented in commands.rs but missing from main.rs invoke_handler
+   - Line: src-tauri/src/main.rs invoke_handler registration
+   - Action: Add both commands to tauri::Builder command registry
+
+2. **Backend persistence for Settings (4 commands missing)** (Track C)
+   - `save_llm_config(url: String, api_key: String, model: String)` — stub in commands.rs
+   - `save_sync_settings(frequency: String, backfill_days: i32)` — stub in commands.rs
+   - `save_ui_preferences(theme: String, currency: String)` — stub in commands.rs
+   - `get_settings()` — stub in commands.rs
+   - Action: Implement backends + wire to database (new `settings` table needed)
+   - Line: src-tauri/src/commands.rs (stubs present, no backend logic)
+
+3. **Claude API categorization stubbed** (Track A)
+   - Returns hardcoded "Uncategorized" instead of calling Claude API
+   - Line: src-tauri/src/llm.rs categorize_with_claude() method
+   - Action: Implement actual Claude API client call (similar to Ollama flow)
+   - Blocking: Cannot fallback to Claude for categorization if Ollama unavailable
+
+4. **No database `settings` table** (Track C data layer)
+   - UI preferences (theme, currency, sync frequency) currently only in localStorage
+   - LLM config stored in keychain but not persisted to DB
+   - Sync settings not persisted
+   - Action: Create schema + CRUD methods in db.rs (columns: key, value, updated_at)
+
+5. **Tests inventory** (Track E)
+   - Found: 2 calculator tests in src/components/calculator.rs (basic smoke tests)
+   - Action: Expand test coverage for commands (SimpleFIN, settings CRUD, categorization fallback)
+
+**Tests found:**
+- src/components/calculator.rs: 2 tests (add, subtract)
+
+---
+
 ## Session 0.0.5 Completion Summary
 
 **COMPLETED THIS SESSION:**

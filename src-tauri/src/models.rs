@@ -162,3 +162,51 @@ impl AsRef<str> for Category {
         }
     }
 }
+
+// Settings DTOs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmConfig {
+    pub ollama_url: String,
+    pub llm_model: String,
+    pub use_local_first: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncSettings {
+    pub sync_frequency: String,  // "manual" | "on-open" | "12h" | "24h"
+    pub backfill_days: u32,
+    pub enable_background_sync: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UiPreferences {
+    pub theme: String,  // "light" | "dark" | "auto"
+    pub currency: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AllSettings {
+    pub llm_config: Option<LlmConfig>,
+    pub sync_settings: Option<SyncSettings>,
+    pub ui_preferences: Option<UiPreferences>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveSettingsResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+// SimpleFIN response DTOs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleFINStatusResponse {
+    pub connected: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_count: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisconnectSimpleFINResponse {
+    pub success: bool,
+    pub message: String,
+}

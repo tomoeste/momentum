@@ -57,6 +57,27 @@ pub struct SyncSimplefinRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct SaveLlmConfigRequest {
+    pub ollama_url: String,
+    pub llm_model: String,
+    pub use_local_first: bool,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SaveSyncSettingsRequest {
+    pub sync_frequency: String,
+    pub backfill_days: u32,
+    pub enable_background_sync: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SaveUiPreferencesRequest {
+    pub theme: String,
+    pub currency: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ClaimSetupTokenRequest {
     pub setup_token: String,
 }
@@ -439,5 +460,121 @@ pub async fn disconnect_simplefin() -> Result<DisconnectSimpleFINResponse> {
     Ok(DisconnectSimpleFINResponse {
         success: true,
         message: "SimpleFIN disconnected successfully".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn save_llm_config(
+    db: State<'_, Database>,
+    request: SaveLlmConfigRequest,
+) -> Result<SaveSettingsResponse> {
+    // Validate Ollama URL format
+    if !request.ollama_url.starts_with("http://") && !request.ollama_url.starts_with("https://") {
+        return Err(AppError::Validation("Ollama URL must start with http:// or https://".to_string()));
+    }
+
+    // Save LLM config to database
+    let config = LlmConfig {
+        ollama_url: request.ollama_url,
+        llm_model: request.llm_model,
+        use_local_first: request.use_local_first,
+    };
+
+    db.save_setting(
+        "llm_config",
+        &serde_json::to_string(&config)
+            .map_err(|e| AppError::Internal(format!("Failed to serialize LLM config: {}", e)))?,
+    )?;
+
+    // Store API key in keychain if provided
+    if let Some(api_key) = request.api_key {
+        if !api_key.is_empty() {
+            crate::keychain::Keychain::store_llm_api_key(&api_key)?;
+        }
+    }
+
+    Ok(SaveSettingsResponse {
+        success: true,
+        message: "LLM configuration saved successfully".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn save_sync_settings(
+    db: State<'_, Database>,
+    request: SaveSyncSettingsRequest,
+) -> Result<SaveSettingsResponse> {
+    // Validate backfill days
+    if request.backfill_days < 1 || request.backfill_days > 3650 {
+        return Err(AppError::Validation("Backfill days must be between 1 and 3650".to_string()));
+    }
+
+    // Validate sync frequency
+    match request.sync_frequency.as_str() {
+        "manual" | "on-open" | "12h" | "24h" => {},
+        _ => return Err(AppError::Validation("Invalid sync frequency".to_string())),
+    }
+
+    let settings = SyncSettings {
+        sync_frequency: request.sync_frequency,
+        backfill_days: request.backfill_days,
+        enable_background_sync: request.enable_background_sync,
+    };
+
+    db.save_setting(
+        "sync_settings",
+        &serde_json::to_string(&settings)
+            .map_err(|e| AppError::Internal(format!("Failed to serialize sync settings: {}", e)))?,
+    )?;
+
+    Ok(SaveSettingsResponse {
+        success: true,
+        message: "Sync settings saved successfully".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn save_ui_preferences(
+    db: State<'_, Database>,
+    request: SaveUiPreferencesRequest,
+) -> Result<SaveSettingsResponse> {
+    // Validate theme
+    match request.theme.as_str() {
+        "light" | "dark" | "auto" => {},
+        _ => return Err(AppError::Validation("Invalid theme value".to_string())),
+    }
+
+    let prefs = UiPreferences {
+        theme: request.theme,
+        currency: request.currency,
+    };
+
+    db.save_setting(
+        "ui_preferences",
+        &serde_json::to_string(&prefs)
+            .map_err(|e| AppError::Internal(format!("Failed to serialize UI preferences: {}", e)))?,
+    )?;
+
+    Ok(SaveSettingsResponse {
+        success: true,
+        message: "UI preferences saved successfully".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn get_settings(db: State<'_, Database>) -> Result<AllSettings> {
+    let llm_config = db.get_setting("llm_config")?
+        .and_then(|s| serde_json::from_str(&s).ok());
+
+    let sync_settings = db.get_setting("sync_settings")?
+        .and_then(|s| serde_json::from_str(&s).ok());
+
+    let ui_preferences = db.get_setting("ui_preferences")?
+        .and_then(|s| serde_json::from_str(&s).ok());
+
+    Ok(AllSettings {
+        llm_config,
+        sync_settings,
+        ui_preferences,
     })
 }

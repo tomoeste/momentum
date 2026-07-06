@@ -40,6 +40,32 @@ struct LlmCategoryResponse {
     confidence: f64,
 }
 
+#[derive(Debug, Serialize)]
+struct ClaudeRequest {
+    model: String,
+    max_tokens: u32,
+    system: String,
+    messages: Vec<ClaudeMessage>,
+}
+
+#[derive(Debug, Serialize)]
+struct ClaudeMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeResponse {
+    content: Vec<ClaudeContentBlock>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeContentBlock {
+    #[serde(rename = "type")]
+    content_type: String,
+    text: Option<String>,
+}
+
 pub struct LlmClient {
     ollama_url: Option<String>,
     api_key: Option<String>,
@@ -154,16 +180,90 @@ Output only valid JSON, no other text.",
         })
     }
 
-    async fn categorize_claude(&self, _api_key: &str, _merchant: &str, _description: &str) -> Result<Categorization> {
-        // For now, return a placeholder since we don't have Claude SDK integrated
-        // This would require adding the Anthropic SDK or making raw HTTP requests
-        // For MVP, focus on Ollama since it's local-first
-        tracing::warn!("Claude API categorization not yet implemented, falling back to Uncategorized");
+    async fn categorize_claude(&self, api_key: &str, merchant: &str, description: &str) -> Result<Categorization> {
+        let system_prompt = "You are a financial transaction categorization assistant. Categorize transactions into one of these categories: Income, Groceries, Dining Out, Transportation, Utilities, Home & Property, Subscriptions, Shopping, Healthcare, Personal Care, Entertainment, Transfers, Interest, Debt Payments, Uncategorized.
+
+Return a JSON object with:
+- category: primary category (string)
+- secondary_category: detailed subcategory if confidence >= 0.85 (string or null)
+- confidence: confidence score 0.0-1.0 (number)
+
+Confidence guidelines:
+- 0.9+: High confidence (very likely correct)
+- 0.7-0.89: Medium confidence (reasonable guess)
+- <0.7: Low confidence (uncertain)
+
+Only return valid JSON, no other text.".to_string();
+
+        let user_message = format!(
+            "Categorize this transaction:\nMerchant: {}\nDescription: {}",
+            merchant, description
+        );
+
+        let request = ClaudeRequest {
+            model: "claude-3-5-sonnet-20241022".to_string(),
+            max_tokens: 256,
+            system: system_prompt,
+            messages: vec![ClaudeMessage {
+                role: "user".to_string(),
+                content: user_message,
+            }],
+        };
+
+        let response = self
+            .http_client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&request)
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| AppError::Llm(format!("Claude API request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(AppError::Llm(format!(
+                "Claude API returned status {}: {}",
+                status, error_text
+            )));
+        }
+
+        let claude_response: ClaudeResponse = response
+            .json()
+            .await
+            .map_err(|e| AppError::Llm(format!("Failed to parse Claude response: {}", e)))?;
+
+        // Extract text from response content
+        let response_text = claude_response
+            .content
+            .iter()
+            .find_map(|block| {
+                if block.content_type == "text" {
+                    block.text.as_ref()
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| AppError::Llm("No text content in Claude response".to_string()))?;
+
+        // Parse the JSON response
+        let parsed: LlmCategoryResponse = serde_json::from_str(response_text)
+            .map_err(|e| AppError::Llm(format!("Failed to parse Claude JSON response: {}", e)))?;
+
+        // Only include secondary category if confidence >= 0.85
+        let secondary = if parsed.confidence >= 0.85 {
+            parsed.secondary_category
+        } else {
+            None
+        };
+
         Ok(Categorization {
-            category: "Uncategorized".to_string(),
-            secondary_category: None,
-            confidence: 0.0,
-            note: Some("Claude API not yet implemented".to_string()),
+            category: parsed.category,
+            secondary_category: secondary,
+            confidence: parsed.confidence.clamp(0.0, 1.0),
+            note: None,
         })
     }
 

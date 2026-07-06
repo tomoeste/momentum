@@ -162,6 +162,52 @@ export interface DisconnectSimpleFINResponse {
   message: string
 }
 
+export interface LlmConfig {
+  ollama_url: string
+  llm_model: string
+  use_local_first: boolean
+}
+
+export interface SyncSettings {
+  sync_frequency: 'manual' | 'on-open' | '12h' | '24h'
+  backfill_days: number
+  enable_background_sync: boolean
+}
+
+export interface UiPreferences {
+  theme: 'light' | 'dark' | 'auto'
+  currency: string
+}
+
+export interface AllSettings {
+  llm_config?: LlmConfig
+  sync_settings?: SyncSettings
+  ui_preferences?: UiPreferences
+}
+
+export interface SaveSettingsResponse {
+  success: boolean
+  message: string
+}
+
+export interface SaveLlmConfigRequest {
+  ollama_url: string
+  llm_model: string
+  use_local_first: boolean
+  api_key?: string
+}
+
+export interface SaveSyncSettingsRequest {
+  sync_frequency: 'manual' | 'on-open' | '12h' | '24h'
+  backfill_days: number
+  enable_background_sync: boolean
+}
+
+export interface SaveUiPreferencesRequest {
+  theme: 'light' | 'dark' | 'auto'
+  currency: string
+}
+
 // Command functions
 export async function getDashboardMetrics(period: Period): Promise<DashboardMetrics> {
   return invoke<DashboardMetrics>('get_dashboard_metrics', { period })
@@ -205,4 +251,20 @@ export async function getSimpleFINStatus(): Promise<SimpleFINStatusResponse> {
 
 export async function disconnectSimpleFIN(): Promise<DisconnectSimpleFINResponse> {
   return invoke<DisconnectSimpleFINResponse>('disconnect_simplefin')
+}
+
+export async function saveLlmConfig(req: SaveLlmConfigRequest): Promise<SaveSettingsResponse> {
+  return invoke<SaveSettingsResponse>('save_llm_config', req as unknown as Record<string, unknown>)
+}
+
+export async function saveSyncSettings(req: SaveSyncSettingsRequest): Promise<SaveSettingsResponse> {
+  return invoke<SaveSettingsResponse>('save_sync_settings', req as unknown as Record<string, unknown>)
+}
+
+export async function saveUiPreferences(req: SaveUiPreferencesRequest): Promise<SaveSettingsResponse> {
+  return invoke<SaveSettingsResponse>('save_ui_preferences', req as unknown as Record<string, unknown>)
+}
+
+export async function getSettings(): Promise<AllSettings> {
+  return invoke<AllSettings>('get_settings')
 }

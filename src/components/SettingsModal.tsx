@@ -5,6 +5,10 @@ import {
   disconnectSimpleFIN,
   getAccounts,
   setDebtTerms,
+  saveLlmConfig,
+  saveSyncSettings,
+  saveUiPreferences,
+  getSettings,
   type Account,
   type SimpleFINStatusResponse,
 } from '../lib/tauri-commands'
@@ -51,18 +55,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   }, [isOpen])
 
-  function loadSettings() {
-    const saved = localStorage.getItem('momentum_settings')
-    if (saved) {
-      const settings = JSON.parse(saved)
-      if (settings.ollama_url) setOllamaUrl(settings.ollama_url)
-      if (settings.llm_model) setLlmModel(settings.llm_model)
-      if (settings.use_local_first !== undefined) setUseLocalFirst(settings.use_local_first)
-      if (settings.sync_frequency) setSyncFrequency(settings.sync_frequency)
-      if (settings.backfill_days) setBackfillDays(settings.backfill_days)
-      if (settings.enable_background_sync !== undefined) setEnableBackgroundSync(settings.enable_background_sync)
-      if (settings.theme) setTheme(settings.theme)
-      if (settings.currency) setCurrency(settings.currency)
+  async function loadSettings() {
+    try {
+      const settings = await getSettings()
+
+      if (settings.llm_config) {
+        setOllamaUrl(settings.llm_config.ollama_url)
+        setLlmModel(settings.llm_config.llm_model)
+        setUseLocalFirst(settings.llm_config.use_local_first)
+      }
+
+      if (settings.sync_settings) {
+        setSyncFrequency(settings.sync_settings.sync_frequency)
+        setBackfillDays(settings.sync_settings.backfill_days.toString())
+        setEnableBackgroundSync(settings.sync_settings.enable_background_sync)
+      }
+
+      if (settings.ui_preferences) {
+        setTheme(settings.ui_preferences.theme)
+        setCurrency(settings.ui_preferences.currency)
+      }
+
+      // Also load from localStorage for fallback (UI preferences can be stored locally)
+      const saved = localStorage.getItem('momentum_settings')
+      if (saved) {
+        const localSettings = JSON.parse(saved)
+        if (!settings.ui_preferences && localSettings.theme) {
+          setTheme(localSettings.theme)
+        }
+        if (!settings.ui_preferences && localSettings.currency) {
+          setCurrency(localSettings.currency)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err)
+      // Fallback to localStorage if backend fails
+      const saved = localStorage.getItem('momentum_settings')
+      if (saved) {
+        const settings = JSON.parse(saved)
+        if (settings.ollama_url) setOllamaUrl(settings.ollama_url)
+        if (settings.llm_model) setLlmModel(settings.llm_model)
+        if (settings.use_local_first !== undefined) setUseLocalFirst(settings.use_local_first)
+        if (settings.sync_frequency) setSyncFrequency(settings.sync_frequency)
+        if (settings.backfill_days) setBackfillDays(settings.backfill_days)
+        if (settings.enable_background_sync !== undefined) setEnableBackgroundSync(settings.enable_background_sync)
+        if (settings.theme) setTheme(settings.theme)
+        if (settings.currency) setCurrency(settings.currency)
+      }
     }
   }
 
@@ -181,15 +220,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setMessage('')
 
     try {
-      // TODO: Call backend command to save LLM config and validate Ollama connection
-      // For now, save to localStorage
-      localStorage.setItem('momentum_settings', JSON.stringify({
+      await saveLlmConfig({
         ollama_url: ollamaUrl,
         llm_model: llmModel,
         use_local_first: useLocalFirst,
-        api_key: apiKey, // TODO: Store in keychain instead of localStorage
-      }))
-      setMessage('LLM configuration saved')
+        api_key: apiKey || undefined,
+      })
+      setMessage('LLM configuration saved successfully')
     } catch (err: any) {
       setError(err?.message || 'Failed to save LLM configuration')
     } finally {
@@ -209,14 +246,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setMessage('')
 
     try {
-      // TODO: Call backend command to save sync settings
-      // For now, save to localStorage
-      localStorage.setItem('momentum_settings', JSON.stringify({
+      await saveSyncSettings({
         sync_frequency: syncFrequency,
-        backfill_days: backfillDays,
+        backfill_days: days,
         enable_background_sync: enableBackgroundSync,
-      }))
-      setMessage('Sync settings saved')
+      })
+      setMessage('Sync settings saved successfully')
     } catch (err: any) {
       setError(err?.message || 'Failed to save sync settings')
     } finally {
@@ -230,12 +265,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setMessage('')
 
     try {
-      // TODO: Call backend command to save UI preferences
-      // For now, save to localStorage
-      localStorage.setItem('momentum_settings', JSON.stringify({
+      await saveUiPreferences({
         theme,
         currency,
-      }))
+      })
 
       // Apply theme to document if needed
       if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -244,7 +277,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         document.documentElement.classList.remove('dark')
       }
 
-      setMessage('UI preferences saved')
+      // Also store in localStorage for immediate effect and fallback
+      localStorage.setItem('momentum_ui_prefs', JSON.stringify({ theme, currency }))
+
+      setMessage('UI preferences saved successfully')
     } catch (err: any) {
       setError(err?.message || 'Failed to save UI preferences')
     } finally {
