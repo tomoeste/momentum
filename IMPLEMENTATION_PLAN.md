@@ -1,8 +1,8 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Init ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1 ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.8 (Track D initialization + sync status + account mapping fixes)
+**Version**: 0.0.8 (Track D Phase 1: sync orchestration + auto-sync on open)
 
 ## Session 0.0.8 Completion Summary
 
@@ -24,7 +24,7 @@
    - [x] Enables transaction queries to work correctly
    - **Future**: User-guided mapping UI for multi-account disambiguation
 
-3. **Sync Orchestrator Module & On-Open Check** (Track D continuation)
+3. **Sync Orchestrator Module & On-Open Check** (Track D Phase 1)
    - [x] Created src-tauri/src/sync_orchestrator.rs module
    - [x] Implemented `should_sync_on_open()` method: checks if >24 hours since last sync
    - [x] Implemented `should_sync_by_frequency()` helper for frequency-based checks
@@ -32,14 +32,23 @@
    - [x] Added TypeScript binding for `shouldSyncOnOpen()` command
    - [x] Enables frontend to trigger automatic sync if needed on app open
    - [x] Includes unit tests for sync logic
-   - **Note**: Frontend integration for auto-sync on open needed next
 
-4. **Build & Test Verification**
+4. **Frontend Auto-Sync Integration** (Track D Phase 1 complete)
+   - [x] Added `checkAndSync()` function in App.tsx that runs on mount
+   - [x] Calls `shouldSyncOnOpen()` to check 24-hour threshold
+   - [x] Auto-triggers `syncSimpleFin()` if sync needed
+   - [x] Sets `syncing` state for Header spinner display
+   - [x] Graceful fallback: loads data even if sync check fails
+   - [x] Non-blocking: auto-sync runs while app initializes
+   - [x] Completes on-app-open sync functionality per spec
+
+5. **Build & Test Verification**
    - [x] `cargo check` passes without errors
+   - [x] `npm build` passes (Vite build succeeds, no TS errors)
    - [x] `npm test` passes (all 9 TypeScript tests)
-   - [x] `cargo test` passes (all 8 Rust unit tests, +1 new orchestrator test)
+   - [x] `cargo test` passes (all 8 Rust unit tests)
    - [x] No breaking changes to existing functionality
-   - [x] Version tagged 0.0.8
+   - [x] Ready for version tag 0.0.8
 
 ---
 
@@ -542,40 +551,49 @@
 
 ### Next Priorities (for next developer)
 
-1. **Track D Phase 2 - Frontend Auto-Sync Integration**: Wire up backend sync check to UI
-   - Priority: HIGH — unblocks auto-sync on app open
-   - Call `shouldSyncOnOpen()` in App.tsx on mount
-   - Automatically trigger `syncSimpleFin()` if check returns true
-   - Display sync progress in Header (spinner during sync)
-   - Display last sync timestamp and error messages in Header
-   - Wire `getSyncStatus()` polling for real-time progress updates
-
-2. **Track D Phase 3 - Frequency-Based Scheduling**: Implement periodic sync during app use
-   - Priority: MEDIUM — improves UX for long-running sessions
+1. **Track D Phase 2 - Frequency-Based Scheduling**: Implement periodic sync during app use
+   - Priority: HIGH — improves UX for long-running sessions
    - Read sync_frequency setting from database (manual/on-open/12h/24h)
    - Implement timer-based scheduler for 12h/24h frequencies
    - Execute sync in background without blocking UI
-   - Update Header with sync status
+   - Update Header with real-time sync status
+   - **Already implemented**: shouldSyncOnOpen() can be reused for on-open check
 
-3. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
+2. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
    - Priority: HIGH — critical for multi-account accuracy
-   - Implement user-guided mapping on first sync with multiple accounts
-   - Show accounts picker for unmapped transactions
-   - Allow bulk assignment to accounts
-   - Save account mapping preference to prevent re-prompting
+   - Implement user-guided mapping UI for multi-account scenarios
+   - Show account picker modal on first sync with multiple accounts
+   - Allow bulk transaction-to-account assignment
+   - Save mapping preference to prevent re-prompting
+   - **Already implemented**: Basic mapping assigns to primary account with warning
 
-4. **Track E - Integration Tests**: Expand coverage beyond unit tests
+3. **Async Sync State Tracking**: Implement true in_progress flag
+   - Priority: MEDIUM — enables real-time progress display
+   - Use Arc<Mutex<bool>> for thread-safe sync state in main.rs
+   - Update flag when sync starts/ends
+   - Return true in get_sync_status during active sync
+   - Enables real-time Header spinner during long-running syncs
+
+4. **Error Display & Recovery**: Improve error handling in UI
+   - Priority: MEDIUM — improves user experience
+   - Display sync errors prominently in Header or dashboard
+   - Add retry button for failed syncs
+   - Show last error message from get_sync_status
+   - Implement error toast notifications
+
+5. **Track E - Integration Tests**: Expand coverage beyond unit tests
    - Priority: MEDIUM — confidence for future changes
    - Component tests (SettingsModal, TransactionList, Header)
    - SimpleFIN sync with mocked API responses
    - Database integration tests (migrations, queries)
    - Error-path tests (timeouts, network failures)
 
-5. **Async Sync State Tracking**: Implement true in_progress flag
-   - Priority: MEDIUM — enables real-time progress display
-   - Use Arc<Mutex<bool>> for thread-safe in_progress flag
-   - Update flag when sync starts/ends
-   - Return true in get_sync_status during active sync
+### Completed in Session 0.0.8
+- [x] get_sync_status command (was missing from backend)
+- [x] Account-to-transaction mapping fix (was inserting empty account_id)
+- [x] sync_orchestrator module with 24-hour check
+- [x] shouldSyncOnOpen command
+- [x] Frontend auto-sync on app open integration
 
 ### Build & Test Status
 - Frontend: npm build ✓ / npm test ✓ (9 TypeScript tests passing)
