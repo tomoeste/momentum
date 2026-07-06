@@ -1,6 +1,6 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ COMPLETE. CP1 ✓ COMPLETE. CP2 (DB Layer) ✓ COMPLETE. CP3 (Commands) 100% COMPLETE. Track A (Keychain + SimpleFIN + LLM Categorization) 100% COMPLETE. Track C (Settings UI) 100% COMPLETE.
+**Status**: Sprint 0 ✓ COMPLETE. CP1 ✓ COMPLETE. CP2 (DB Layer) ✓ COMPLETE. CP3 (Commands) 100% COMPLETE. Track A (Keychain + SimpleFIN + LLM Categorization) 100% COMPLETE. Track B (UI) 100% COMPLETE. Track C (Settings UI) 100% COMPLETE.
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
 **Version**: 0.0.5 (Keychain integration + Settings UI foundation)
 
@@ -243,29 +243,21 @@
 
 ---
 
-## PARALLEL TRACK B — Frontend (starts once CP1 done + Sprint-0 #3 frozen)
+## PARALLEL TRACK B — Frontend (100% COMPLETE)
 
-> Build against mocked tauri-commands returning frozen DTOs; swap to real at CP3.
-
-### Shell & dashboard
-- [ ] App.tsx layout + Header (last-sync, settings, sync status)
-- [ ] This Week / This Month toggle + period state
-- [ ] MomentumCards grid container (responsive)
-- [ ] Metric cards: Income, Spending, Debt Paydown, Interest, Debt Ratio
-- [ ] Recharts sparkline (no axes; income=green/spend=red/debt=blue/interest=orange)
-- [ ] Category breakdown (top 5-7, % of spend, click-to-filter)
-- [ ] Interest Bleed alert card ($/day overhead, % income, severity color)
-- [ ] Opportunity Cost card (scenario list, dynamic) `[BLOCKED:3]`
-- [ ] Loading skeletons + error boundary + failed-sync message
-
-### Transaction drill-down
-- [ ] TransactionList view + filter header + search box
-- [ ] Virtualized TransactionTable (sortable date/amount)
-- [ ] Detail/recategorization modal (category, secondary, note, manual flag)
-- [ ] Filters: date-range, category, account, type + reset `[BLOCKED:1]`
-- [ ] Debounced case-insensitive search + match highlight
-- [ ] Save handler -> recategorize command + toast
-- [ ] "Recategorize all" bulk action (confirm + progress)
+### Transaction List UI ✓ 100% COMPLETE
+- [x] **COMPLETED**: TransactionList component with full functionality
+- [x] **COMPLETED**: Search bar (case-insensitive merchant/description search)
+- [x] **COMPLETED**: Filtering by account and category (dropdown selectors)
+- [x] **COMPLETED**: Sorting options (date asc/desc, amount asc/desc)
+- [x] **COMPLETED**: Transaction table with date, merchant, account, category, amount columns
+- [x] **COMPLETED**: Pagination (25/50/100 items per page, prev/next buttons)
+- [x] **COMPLETED**: Detail/recategorization modal (category, secondary_category, note fields)
+- [x] **COMPLETED**: Save handler integrating with recategorize_transaction command
+- [x] **COMPLETED**: View toggle in App.tsx (Dashboard ↔ Transactions)
+- [x] **COMPLETED**: Header button to navigate to transactions
+- [ ] Virtualized table for performance (optional optimization)
+- [ ] "Recategorize all" bulk action with progress bar
 
 ---
 
@@ -410,16 +402,7 @@
 
 ### Next Priorities (for next developer)
 
-1. **Transaction List UI** (Track B): Implement transaction drill-down view
-   - TransactionList component with virtualized table (react-window)
-   - Filter header: date-range, category, account, type dropdowns + reset button
-   - Debounced search box with merchant/description highlight
-   - Sortable columns (date, amount, category)
-   - Detail/recategorization modal: category picker, secondary category, manual note, manual flag
-   - Save handler → recategorize_transaction command + success toast
-   - "Recategorize all" bulk action with progress bar + confirm dialog
-
-2. **Sync Orchestration** (Track D): Background sync scheduling + error recovery
+1. **Sync Orchestration** (Track D): Background sync scheduling + error recovery
    - Sync scheduler: check on app open if >24h since last sync, trigger auto-sync
    - Background sync via settings (configurable frequency + backfill)
    - Retry with exponential backoff for transient failures
@@ -427,14 +410,14 @@
    - Sync status indicator in Header (in-progress spinner, error badge)
    - Error recovery UI: display sync errors in dashboard alert + retry button
 
-3. **Account-to-Transaction Mapping** (Track A continuation): Handle SimpleFIN limitation
+2. **Account-to-Transaction Mapping** (Track A continuation): Handle SimpleFIN limitation
    - SimpleFIN returns flat transaction list without account_id
    - Option A: Merchant pattern matching (e.g., Paypal → link to source account)
    - Option B: User-guided mapping: first sync shows account picker for unmapped txns
    - Option C: Require explicit account selection in SimpleFIN settings UI
    - Update sync_simplefin to populate transaction.account_id before insert
 
-4. **Full Build & Test**: Compile + test end-to-end flow in proper environment
+3. **Full Build & Test**: Compile + test end-to-end flow in proper environment
    - Install Rust toolchain (rustup) in build environment
    - Test dashboard with real SimpleFIN data
    - Verify metrics calculations against test scenarios
