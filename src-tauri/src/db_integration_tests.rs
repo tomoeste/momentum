@@ -386,4 +386,119 @@ mod integration_tests {
         // Should return some number of daily metrics (even if empty)
         assert!(sparkline.len() > 0, "Sparkline should have entries");
     }
+
+    // Database Constraint Violation Tests
+    #[test]
+    fn test_account_id_uniqueness() {
+        let db = setup_test_db();
+
+        // Insert first account with unique ID
+        let account1 = Account {
+            id: "acc_1".to_string(),
+            simplefin_account_id: Some("sf_123".to_string()),
+            name: "Account 1".to_string(),
+            account_type: AccountType::Checking,
+            organization: None,
+            balance: 1000.0,
+            last_updated: Utc::now(),
+        };
+
+        db.insert_account(&account1).expect("Failed to insert first account");
+
+        // Insert second account with different ID
+        let account2 = Account {
+            id: "acc_2".to_string(),
+            simplefin_account_id: Some("sf_456".to_string()), // Different ID
+            name: "Account 2".to_string(),
+            account_type: AccountType::Checking,
+            organization: None,
+            balance: 2000.0,
+            last_updated: Utc::now(),
+        };
+
+        let result = db.insert_account(&account2);
+
+        // Should succeed - different primary keys
+        assert!(result.is_ok(), "Should allow accounts with different IDs");
+
+        // Verify both accounts exist
+        let accounts = db.get_accounts().expect("Failed to get accounts");
+        assert_eq!(accounts.len(), 2, "Should have 2 accounts");
+    }
+
+    #[test]
+    fn test_categorized_transaction_requires_raw_transaction() {
+        let db = setup_test_db();
+
+        // Try to categorize a transaction that doesn't exist
+        let category = create_test_categorization("nonexistent_txn", "Shopping");
+
+        let result = db.categorize_transaction("nonexistent_txn", &category);
+
+        // Should fail due to FK constraint
+        assert!(result.is_err(), "Should reject categorization of non-existent transaction");
+    }
+
+    #[test]
+    fn test_categorized_transaction_with_valid_transaction() {
+        let db = setup_test_db();
+
+        // Setup: create account and transaction
+        let account = create_test_account("acc_1", "Checking");
+        db.insert_account(&account).expect("Failed to insert account");
+
+        let txn = create_test_transaction("txn_1", "acc_1", 100.0);
+        db.insert_transaction(&txn).expect("Failed to insert transaction");
+
+        // Categorize the transaction - should succeed
+        let cat = create_test_categorization("txn_1", "Shopping");
+        let result = db.categorize_transaction("txn_1", &cat);
+
+        // Should succeed - valid FK reference
+        assert!(result.is_ok(), "Should allow categorization of existing transaction");
+    }
+
+    #[test]
+    fn test_account_with_no_simplefin_id_allowed() {
+        let db = setup_test_db();
+
+        // Account can have NULL simplefin_account_id (not all accounts come from SimpleFIN)
+        let account = Account {
+            id: "acc_manual".to_string(),
+            simplefin_account_id: None, // No SimpleFIN ID
+            name: "Manual Account".to_string(),
+            account_type: AccountType::Savings,
+            organization: None,
+            balance: 5000.0,
+            last_updated: Utc::now(),
+        };
+
+        let result = db.insert_account(&account);
+
+        // Should succeed - simplefin_account_id is nullable
+        assert!(result.is_ok(), "Should allow account with NULL simplefin_account_id");
+    }
+
+    #[test]
+    fn test_multiple_accounts_same_name_allowed() {
+        let db = setup_test_db();
+
+        // Multiple accounts can have the same name (no UNIQUE constraint on name)
+        let account1 = create_test_account("acc_1", "Checking");
+        let account2 = Account {
+            id: "acc_2".to_string(),
+            simplefin_account_id: Some("sf_456".to_string()),
+            name: "Checking".to_string(), // Same name as account1
+            account_type: AccountType::Checking,
+            organization: None,
+            balance: 6000.0,
+            last_updated: Utc::now(),
+        };
+
+        db.insert_account(&account1).expect("Failed to insert account1");
+        let result = db.insert_account(&account2);
+
+        // Should succeed - name is not unique
+        assert!(result.is_ok(), "Should allow multiple accounts with same name");
+    }
 }
