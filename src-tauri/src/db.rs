@@ -90,7 +90,22 @@ impl Database {
                 value TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS transaction_mappings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                transaction_id TEXT NOT NULL UNIQUE,
+                original_account_id TEXT NOT NULL,
+                mapped_account_id TEXT NOT NULL,
+                mapped_at TEXT NOT NULL,
+                FOREIGN KEY(transaction_id) REFERENCES raw_transactions(id),
+                FOREIGN KEY(original_account_id) REFERENCES accounts(id),
+                FOREIGN KEY(mapped_account_id) REFERENCES accounts(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_transaction_mappings_transaction_id ON transaction_mappings(transaction_id);
+            CREATE INDEX IF NOT EXISTS idx_transaction_mappings_mapped_account_id ON transaction_mappings(mapped_account_id);
             "
+
         ).map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(())
@@ -572,5 +587,98 @@ impl Database {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(settings)
+    }
+
+    /// Get unmapped transactions (those without a mapping entry)
+    pub fn get_unmapped_transactions(&self) -> Result<Vec<RawTransaction>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, account_id, posted_date, amount, merchant, description,
+                        transaction_type, imported_at
+                 FROM raw_transactions
+                 WHERE id NOT IN (SELECT transaction_id FROM transaction_mappings)
+                 ORDER BY posted_date DESC"
+            )
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let transactions = stmt
+            .query_map([], |row| {
+                Ok(RawTransaction {
+                    id: row.get(0)?,
+                    account_id: row.get(1)?,
+                    posted_date: DateTime::parse_from_rfc3339(&row.get::<_, String>(2)?)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    amount: row.get(3)?,
+                    merchant: row.get(4)?,
+                    description: row.get(5)?,
+                    transaction_type: row.get(6)?,
+                    imported_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                })
+            })
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(transactions)
+    }
+
+    /// Record a transaction mapping decision
+    pub fn record_transaction_mapping(
+        &self,
+        transaction_id: &str,
+        original_account_id: &str,
+        mapped_account_id: &str,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+
+        conn.execute(
+            "INSERT OR REPLACE INTO transaction_mappings
+             (transaction_id, original_account_id, mapped_account_id, mapped_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![transaction_id, original_account_id, mapped_account_id, now],
+        ).map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Bulk update transaction account assignments and record mappings
+    pub fn bulk_update_transaction_accounts(
+        &self,
+        mappings: &[(String, String)], // (transaction_id, new_account_id)
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+
+        for (transaction_id, new_account_id) in mappings {
+            // Get the current account_id
+            let current_account_id: String = conn
+                .query_row(
+                    "SELECT account_id FROM raw_transactions WHERE id = ?1",
+                    params![transaction_id],
+                    |row| row.get(0),
+                )
+                .map_err(|e| AppError::Database(e.to_string()))?;
+
+            // Record the mapping
+            conn.execute(
+                "INSERT OR REPLACE INTO transaction_mappings
+                 (transaction_id, original_account_id, mapped_account_id, mapped_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![transaction_id, current_account_id, new_account_id, now],
+            ).map_err(|e| AppError::Database(e.to_string()))?;
+
+            // Update the transaction account
+            conn.execute(
+                "UPDATE raw_transactions SET account_id = ?1 WHERE id = ?2",
+                params![new_account_id, transaction_id],
+            ).map_err(|e| AppError::Database(e.to_string()))?;
+        }
+
+        Ok(())
     }
 }

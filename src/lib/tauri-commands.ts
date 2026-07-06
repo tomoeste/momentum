@@ -208,6 +208,31 @@ export interface SaveUiPreferencesRequest {
   currency: string
 }
 
+export interface TransactionMappingSuggestion {
+  transaction_id: string
+  current_account_id: string
+  merchant: string | null
+  description: string
+  amount: number
+  posted_date: string
+}
+
+export interface GetTransactionMappingSuggestionsResponse {
+  unmapped_transactions: TransactionMappingSuggestion[]
+  available_accounts: Account[]
+  mapping_required: boolean
+}
+
+export interface SubmitTransactionMappingsRequest {
+  mappings: [string, string][]
+}
+
+export interface SubmitTransactionMappingsResponse {
+  success: boolean
+  message: string
+  updated_count: number
+}
+
 // Command functions
 export async function getDashboardMetrics(period: Period): Promise<DashboardMetrics> {
   return invoke<DashboardMetrics>('get_dashboard_metrics', { period })
@@ -271,4 +296,12 @@ export async function saveUiPreferences(req: SaveUiPreferencesRequest): Promise<
 
 export async function getSettings(): Promise<AllSettings> {
   return invoke<AllSettings>('get_settings')
+}
+
+export async function getTransactionMappingSuggestions(): Promise<GetTransactionMappingSuggestionsResponse> {
+  return invoke<GetTransactionMappingSuggestionsResponse>('get_transaction_mapping_suggestions')
+}
+
+export async function submitTransactionMappings(req: SubmitTransactionMappingsRequest): Promise<SubmitTransactionMappingsResponse> {
+  return invoke<SubmitTransactionMappingsResponse>('submit_transaction_mappings', req as unknown as Record<string, unknown>)
 }

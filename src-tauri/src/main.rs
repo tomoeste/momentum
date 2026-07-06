@@ -73,6 +73,8 @@ fn main() {
             commands::save_sync_settings,
             commands::save_ui_preferences,
             commands::get_settings,
+            commands::get_transaction_mapping_suggestions,
+            commands::submit_transaction_mappings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

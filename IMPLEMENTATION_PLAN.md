@@ -593,28 +593,17 @@
 - **TypeScript**: Updated bindings; strict type checking passes
 - **Database Indexes**: Added categorized_transactions.category for query performance
 
-### Known Issues (0.0.7)
+### Known Issues (0.0.9)
 - **Account-to-Transaction Mapping**: SimpleFIN returns transactions without account_id
-  - Current implementation (0.0.8 prep): Assigns all transactions to primary account; logs warning for multi-account scenarios
-  - Future: User-guided mapping UI for multi-account disambiguation (Track D continuation)
+  - Current implementation: Assigns all transactions to primary account; logs warning for multi-account scenarios
+  - Future: User-guided mapping UI for multi-account disambiguation
   - Impact: Works correctly for single-account users; multi-account users need mapping UI
 - **Performance**: Not yet tested with 1K+ transactions
   - Impact: Unknown if pagination/virtualization needed for large datasets
-- **Sync Progress Tracking**: sync_simplefin is blocking; no real-time progress updates
-  - Current implementation: get_sync_status returns last sync info only (in_progress flag always false)
-  - Future: Implement async sync with in-memory state tracking for progress display
 
 ### Next Priorities (for next developer)
 
-1. **Track D Phase 3 - Async Sync State Tracking**: Real-time progress display
-   - Priority: HIGH — improves UX with live spinner during long syncs
-   - Use Arc<Mutex<bool>> for thread-safe sync state in main.rs
-   - Update flag when sync_simplefin starts/ends
-   - Return true in get_sync_status during active sync
-   - Currently: in_progress flag always false; prevents real-time feedback
-   - **Why**: Users can't tell if a long-running sync is still working
-
-2. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
+1. **Account-to-Transaction Mapping UI**: Multi-account disambiguation
    - Priority: HIGH — critical for multi-account accuracy
    - Implement user-guided mapping UI for multi-account scenarios
    - Show account picker modal on first sync with multiple accounts
@@ -622,21 +611,14 @@
    - Save mapping preference to prevent re-prompting
    - **Already implemented**: Basic mapping assigns to primary account with warning
 
-3. **Async Sync State Tracking**: Implement true in_progress flag
-   - Priority: MEDIUM — enables real-time progress display
-   - Use Arc<Mutex<bool>> for thread-safe sync state in main.rs
-   - Update flag when sync starts/ends
-   - Return true in get_sync_status during active sync
-   - Enables real-time Header spinner during long-running syncs
-
-4. **Error Display & Recovery**: Improve error handling in UI
+2. **Error Display & Recovery**: Improve error handling in UI
    - Priority: MEDIUM — improves user experience
    - Display sync errors prominently in Header or dashboard
    - Add retry button for failed syncs
    - Show last error message from get_sync_status
    - Implement error toast notifications
 
-5. **Track E - Integration Tests**: Expand coverage beyond unit tests
+3. **Track E - Integration Tests**: Expand coverage beyond unit tests
    - Priority: MEDIUM — confidence for future changes
    - Component tests (SettingsModal, TransactionList, Header)
    - SimpleFIN sync with mocked API responses
@@ -653,12 +635,13 @@
 - [x] Track D Phase 1-2 fully implemented
 - [x] 5 commits with comprehensive features
 
-### Build & Test Status
+### Build & Test Status (0.0.9)
 - Frontend: npm build ✓ / npm test ✓ (9 TypeScript tests passing)
-- Backend: cargo check ✓ / cargo test ✓ (7 Rust tests passing)
+- Backend: cargo check ✓ / cargo test ✓ (10 Rust tests passing; +2 sync_state tests in Phase 3)
 - Integration: Settings backend wired to database ✓
 - Database: All CRUD methods + aggregation queries implemented ✓
-- Commands: All 9 core commands + settings commands fully implemented ✓
+- Commands: All 9 core commands + settings commands + sync state commands fully implemented ✓
+- Sync State: Thread-safe Arc<Mutex<bool>> state tracking with start/end/query methods ✓
 
 ---
 

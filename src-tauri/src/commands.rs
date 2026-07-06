@@ -651,3 +651,48 @@ pub async fn should_sync_on_open(db: State<'_, Database>) -> Result<bool> {
     // Check if sync should run based on last sync time (>24h threshold)
     crate::sync_orchestrator::SyncOrchestrator::should_sync_on_open(&db)
 }
+
+#[tauri::command]
+pub async fn get_transaction_mapping_suggestions(
+    db: State<'_, Database>,
+) -> Result<GetTransactionMappingSuggestionsResponse> {
+    let unmapped = db.get_unmapped_transactions()?;
+    let accounts = db.get_accounts()?;
+
+    let mapping_required = !unmapped.is_empty() && accounts.len() > 1;
+
+    let suggestions: Vec<TransactionMappingSuggestion> = unmapped
+        .into_iter()
+        .map(|txn| TransactionMappingSuggestion {
+            transaction_id: txn.id,
+            current_account_id: txn.account_id,
+            merchant: txn.merchant,
+            description: txn.description,
+            amount: txn.amount,
+            posted_date: txn.posted_date,
+        })
+        .collect();
+
+    Ok(GetTransactionMappingSuggestionsResponse {
+        unmapped_transactions: suggestions,
+        available_accounts: accounts,
+        mapping_required,
+    })
+}
+
+#[tauri::command]
+pub async fn submit_transaction_mappings(
+    req: SubmitTransactionMappingsRequest,
+    db: State<'_, Database>,
+) -> Result<SubmitTransactionMappingsResponse> {
+    let count = req.mappings.len();
+
+    // Bulk update transaction accounts (also records mappings internally)
+    db.bulk_update_transaction_accounts(&req.mappings)?;
+
+    Ok(SubmitTransactionMappingsResponse {
+        success: true,
+        message: format!("Successfully mapped {} transactions", count),
+        updated_count: count as i32,
+    })
+}

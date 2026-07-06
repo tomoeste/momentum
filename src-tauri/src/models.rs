@@ -210,3 +210,33 @@ pub struct DisconnectSimpleFINResponse {
     pub success: bool,
     pub message: String,
 }
+
+// Transaction mapping DTOs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionMappingSuggestion {
+    pub transaction_id: String,
+    pub current_account_id: String,
+    pub merchant: Option<String>,
+    pub description: String,
+    pub amount: f64,
+    pub posted_date: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetTransactionMappingSuggestionsResponse {
+    pub unmapped_transactions: Vec<TransactionMappingSuggestion>,
+    pub available_accounts: Vec<Account>,
+    pub mapping_required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubmitTransactionMappingsRequest {
+    pub mappings: Vec<(String, String)>, // (transaction_id, new_account_id)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubmitTransactionMappingsResponse {
+    pub success: bool,
+    pub message: String,
+    pub updated_count: i32,
+}

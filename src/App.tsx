@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, shouldSyncOnOpen, Period, DashboardMetrics, GetOpportunityScenariosResponse } from './lib/tauri-commands'
+import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, shouldSyncOnOpen, getTransactionMappingSuggestions, submitTransactionMappings, Period, DashboardMetrics, GetOpportunityScenariosResponse, GetTransactionMappingSuggestionsResponse } from './lib/tauri-commands'
 import { Header } from './components/Header'
 import { SettingsModal } from './components/SettingsModal'
+import { AccountMappingModal } from './components/AccountMappingModal'
 import { TransactionList } from './components/TransactionList'
 import { syncScheduler } from './lib/sync-scheduler'
 
@@ -26,6 +27,8 @@ function App() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [mappingModalOpen, setMappingModalOpen] = useState(false)
+  const [mappingSuggestions, setMappingSuggestions] = useState<GetTransactionMappingSuggestionsResponse | null>(null)
 
   // Check if sync should run on app open (>24h since last sync)
   useEffect(() => {
@@ -53,6 +56,7 @@ function App() {
         setSyncing(true)
         try {
           await syncSimpleFin({ days_back: 90 })
+          await checkForMappingNeeded()
           await loadData()
         } catch (err) {
           console.error('Auto-sync failed:', err)
@@ -68,6 +72,19 @@ function App() {
       console.error('Failed to check sync status:', err)
       // Still load data even if check fails
       await loadData()
+    }
+  }
+
+  async function checkForMappingNeeded() {
+    try {
+      const suggestions = await getTransactionMappingSuggestions()
+      if (suggestions.mapping_required && suggestions.unmapped_transactions.length > 0) {
+        setMappingSuggestions(suggestions)
+        setMappingModalOpen(true)
+      }
+    } catch (err) {
+      console.error('Failed to check mapping requirements:', err)
+      // Don't block the user if mapping check fails
     }
   }
 
@@ -97,6 +114,7 @@ function App() {
 
     try {
       await syncSimpleFin({ days_back: 90 })
+      await checkForMappingNeeded()
       // Reload data after sync
       await loadData()
     } catch (err) {
@@ -105,6 +123,24 @@ function App() {
     } finally {
       setSyncing(false)
     }
+  }
+
+  async function handleMappingSubmit(mappings: [string, string][]) {
+    try {
+      await submitTransactionMappings({ mappings })
+      setMappingModalOpen(false)
+      setMappingSuggestions(null)
+      // Reload data after mapping submission
+      await loadData()
+    } catch (err) {
+      console.error('Failed to submit mappings:', err)
+      throw err
+    }
+  }
+
+  function handleMappingCancel() {
+    setMappingModalOpen(false)
+    setMappingSuggestions(null)
   }
 
   // Handle view transitions
@@ -231,6 +267,16 @@ function App() {
       </main>
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {mappingSuggestions && (
+        <AccountMappingModal
+          isOpen={mappingModalOpen}
+          unmappedTransactions={mappingSuggestions.unmapped_transactions}
+          availableAccounts={mappingSuggestions.available_accounts}
+          onSubmit={handleMappingSubmit}
+          onCancel={handleMappingCancel}
+        />
+      )}
     </div>
   )
 }
