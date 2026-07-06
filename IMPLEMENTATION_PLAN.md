@@ -1,8 +1,45 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.15 (SimpleFIN Integration Tests)
+**Version**: 0.0.16 (LLM Error Path Tests)
+
+## Session 0.0.16 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **LLM Categorization Error Path Tests (Track E)** - 11 new tests
+   - [x] Ollama success with JSON response parsing
+   - [x] Ollama API error handling (503 Service Unavailable)
+   - [x] Ollama malformed JSON response handling
+   - [x] Ollama network timeout with fallback
+   - [x] Confidence bounds testing (clamping 0.0-1.0)
+   - [x] Confidence clamping for values > 1.0
+   - [x] Confidence clamping for negative values
+   - [x] No LLM configured fallback behavior
+   - [x] Secondary category filtering (confidence threshold)
+   - [x] Health check success scenario
+   - [x] Health check failure scenario
+
+2. **Test Infrastructure Enhancement**
+   - [x] Added 3 unit tests for categorization logic
+   - [x] Added 8 integration tests with HTTP mocking
+   - [x] All tests use MockServer for Ollama simulation
+
+3. **Test Status**
+   - [x] 56 Rust library tests passing (45 original + 11 new LLM tests)
+   - [x] 39 Rust main tests passing
+   - [x] 58 TypeScript tests passing
+   - [x] Total: 153 tests passing
+
+4. **Error Coverage**
+   - [x] API error scenarios (503 errors)
+   - [x] Network timeout scenarios
+   - [x] Malformed response handling
+   - [x] Confidence normalization edge cases
+   - [x] Fallback behavior when Ollama unavailable
+
+---
 
 ## Session 0.0.15 Completion Summary
 
