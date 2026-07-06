@@ -1,6 +1,6 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓** **DB Constraint Tests ✓** **Error Display & Recovery Notifications ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓** **DB Constraint Tests ✓** **Error Display & Recovery Notifications ✓** **Performance Testing ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
 **Version**: 0.0.18 (Error Display & Recovery Notifications)
 
@@ -36,7 +36,7 @@
 
 **Remaining Work (Optional/Polish):**
 - sync_simplefin end-to-end integration tests
-- Performance testing (1K+ transactions)
+- ✓ Performance testing (1K+ transactions) - COMPLETED Session 0.0.18
 - UI polish (loading states, error toasts)
 - Performance optimizations
 - Cross-platform keychain testing
@@ -63,19 +63,28 @@
      - Retry button functional for manual sync retry
      - Toast provides additional notification layer (dual feedback system)
 
-2. **Test Status**
-   - [x] 61 Rust library tests passing (56 original + 5 DB constraint tests)
+2. **Performance Testing (Track E)** - 3 new performance tests
+   - [x] test_large_transaction_dataset_performance: Validates 1000 transaction insertion, queries, metrics
+   - [x] test_transaction_pagination_with_large_dataset: Validates pagination with 500 transactions
+   - [x] test_large_categorized_transaction_dataset: Validates categorization performance
+   - [x] Performance benchmarks: <5s insert time, <100ms queries, <500ms metrics calculations
+   - [x] All performance tests passing with acceptable performance thresholds
+   - [x] Test status: 64 Rust library tests (61 original + 3 new performance)
+
+3. **Test Status**
+   - [x] 64 Rust library tests passing (61 original + 3 new performance tests)
    - [x] 39 Rust main tests passing
    - [x] 58 TypeScript tests passing
-   - [x] Total: 119 tests passing
+   - [x] Total: 122 tests passing (64 Rust library + 58 TypeScript)
    - [x] Zero compiler warnings
 
-3. **Build & Test Verification**
+4. **Build & Test Verification**
    - [x] `cargo check` passes without errors or warnings
-   - [x] `cargo test` passes (61 Rust library + 39 main tests)
+   - [x] `cargo test` passes (64 Rust library + 39 main tests)
    - [x] `npm build` passes (Vite build succeeds, no TS errors)
    - [x] `npm test` passes (all 58 TypeScript tests)
    - [x] No breaking changes to existing functionality
+   - [x] Performance tests validated with acceptable thresholds
 
 ---
 

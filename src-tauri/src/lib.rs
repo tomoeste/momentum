@@ -10,5 +10,7 @@ pub mod sync_orchestrator;
 pub mod sync_state;
 #[cfg(test)]
 mod db_integration_tests;
+#[cfg(test)]
+mod performance_tests;
 
 pub use errors::{AppError, Result};
