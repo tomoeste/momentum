@@ -35,8 +35,14 @@ cargo tauri dev         # Launch dev app with hot reload (requires Rust toolchai
 
 **Populate test data**:
 - Database initializes automatically at `~/.config/momentum/momentum.db`
-- Use sqlite3 CLI to insert test transactions for dashboard validation
+- Run `sync` command to fetch accounts and auto-categorize transactions using LLM
+- View categorized results in TransactionList UI component with filtering and recategorization
 - See `specs/01_accounts_schema.md` for schema details
+
+**Transaction categorization**:
+- Transactions are auto-categorized during sync using Ollama LLM with confidence scores
+- Confidence < 1.0 indicates LLM-assigned category; recategorize_transaction sets confidence to 1.0 (user override)
+- Query `categorized_transactions` table to inspect category labels and confidence values
 
 **Sample SQLite commands**:
 ```sql
@@ -47,9 +53,8 @@ INSERT INTO accounts VALUES ('test_checking', 'simplefin_123', 'My Checking', 'c
 INSERT INTO raw_transactions VALUES 
   ('txn_1', 'test_checking', datetime('now'), 100.0, 'Employer', 'Paycheck', 'deposit', datetime('now'), 'simplefin');
 
--- Insert categorization
-INSERT INTO categorized_transactions VALUES
-  ('txn_1', 'Income', NULL, 1.0, NULL, datetime('now'), 0);
+-- Check LLM-categorized transaction
+SELECT id, category, confidence FROM categorized_transactions WHERE id = 'txn_1';
 ```
 
 ## Project Structure
@@ -67,3 +72,15 @@ INSERT INTO categorized_transactions VALUES
 - **Database**: rusqlite with named params; COALESCE for null safety; indexes on frequently-filtered columns
 - **Serialization**: serde (Rust) ↔ JSON ↔ TypeScript type mapping in tauri-commands.ts
 - **Metrics**: SQL aggregations in db.rs; use ABS() for negative amounts (spending, interest); sparkline via recursive CTE
+- **LLM Categorization**: Ollama (localhost:11434) with JSON-based prompts for auto-categorizing transactions during sync; confidence scores track user overrides vs. LLM assignments
+- **Settings Persistence**: localStorage for UI preferences (view toggle, filters); keychain for sensitive credentials (SimpleFIN access_url, LLM API keys)
+- **Transaction Management**: getTransactions command supports filtering by account/category/date; recategorize_transaction for user overrides (sets confidence=1.0)
+- **View System**: App.tsx toggles between Dashboard and Transaction List views; TransactionList component provides filtering and recategorization UI
+
+## Testing Checklist
+
+- [ ] LLM categorization works (check Tauri logs for ollama requests; verify categorized_transactions has reasonable categories)
+- [ ] Settings UI persists choices to localStorage (change view, refresh, verify state restored)
+- [ ] Transaction List filters work correctly (filter by account/category, verify results)
+- [ ] Recategorization updates confidence to 1.0 (user override via TransactionList)
+- [ ] All 6 settings tabs render without errors (General, Account, LLM, SimpleFIN, Security, Advanced)
