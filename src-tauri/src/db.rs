@@ -348,7 +348,7 @@ impl Database {
             ), 0.0) AS debt_paydown,
 
             COALESCE((
-                SELECT SUM(rt.amount)
+                SELECT SUM(ABS(rt.amount))
                 FROM raw_transactions rt
                 JOIN categorized_transactions ct ON ct.id = rt.id
                 WHERE ct.category = 'Interest'
@@ -415,7 +415,7 @@ impl Database {
             GROUP BY date(rt.posted_date)
         ),
         interest_daily AS (
-            SELECT date(rt.posted_date) AS day, SUM(rt.amount) AS total
+            SELECT date(rt.posted_date) AS day, SUM(ABS(rt.amount)) AS total
             FROM raw_transactions rt
             JOIN categorized_transactions ct ON ct.id = rt.id
             WHERE ct.category = 'Interest'
