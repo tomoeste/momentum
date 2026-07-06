@@ -56,8 +56,6 @@ impl SyncOrchestrator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_24_hour_threshold() {
         // Test: 25 hours should trigger sync

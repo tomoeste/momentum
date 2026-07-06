@@ -69,17 +69,14 @@ struct ClaudeContentBlock {
 pub struct LlmClient {
     ollama_url: Option<String>,
     api_key: Option<String>,
-    use_local_first: bool,
     http_client: reqwest::Client,
 }
 
 impl LlmClient {
     pub fn new(ollama_url: Option<String>, api_key: Option<String>) -> Self {
-        let use_local_first = ollama_url.is_some();
         LlmClient {
             ollama_url,
             api_key,
-            use_local_first,
             http_client: reqwest::Client::new(),
         }
     }
