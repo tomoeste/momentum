@@ -8,5 +8,7 @@ pub mod calculator;
 pub mod keychain;
 pub mod sync_orchestrator;
 pub mod sync_state;
+#[cfg(test)]
+mod db_integration_tests;
 
 pub use errors::{AppError, Result};

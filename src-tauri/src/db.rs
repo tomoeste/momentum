@@ -308,7 +308,7 @@ impl Database {
         let query = if account_id.is_some() {
             "SELECT id, account_id, posted_date, amount, merchant, description, transaction_type, imported_at FROM raw_transactions WHERE account_id = ?1 ORDER BY posted_date DESC LIMIT ?2 OFFSET ?3"
         } else {
-            "SELECT id, account_id, posted_date, amount, merchant, description, transaction_type, imported_at FROM raw_transactions ORDER BY posted_date DESC LIMIT ?2 OFFSET ?3"
+            "SELECT id, account_id, posted_date, amount, merchant, description, transaction_type, imported_at FROM raw_transactions ORDER BY posted_date DESC LIMIT ?1 OFFSET ?2"
         };
 
         let mut stmt = conn.prepare(query).map_err(|e| AppError::Database(e.to_string()))?;
