@@ -225,15 +225,28 @@ pub async fn sync_simplefin(
     req: SyncSimplefinRequest,
     db: State<'_, Database>,
     llm: State<'_, crate::llm::LlmClient>,
+    sync_state: State<'_, crate::sync_state::SyncState>,
 ) -> Result<SyncStatus> {
     let start_time = std::time::Instant::now();
     let days_back = req.days_back.unwrap_or(90);
 
+    // Mark sync as in progress
+    sync_state.start_sync();
+
     // Retrieve access URL from keychain
-    let access_url = crate::keychain::Keychain::retrieve_simplefin_access_url()?;
+    let access_url = match crate::keychain::Keychain::retrieve_simplefin_access_url() {
+        Ok(url) => url,
+        Err(e) => {
+            sync_state.end_sync();
+            return Err(e);
+        }
+    };
 
     // Validate access URL format
-    crate::simplefin::SimpleFin::validate_access_url(&access_url)?;
+    if let Err(e) = crate::simplefin::SimpleFin::validate_access_url(&access_url) {
+        sync_state.end_sync();
+        return Err(e);
+    }
 
     // Create SimpleFIN client
     let client = crate::simplefin::SimpleFin::new(access_url);
@@ -243,7 +256,8 @@ pub async fn sync_simplefin(
         Ok(accounts) => accounts,
         Err(e) => {
             let error_msg = format!("{:?}", e);
-            db.insert_sync_log("failed", 0, Some(&error_msg), start_time.elapsed().as_millis() as i32)?;
+            let _ = db.insert_sync_log("failed", 0, Some(&error_msg), start_time.elapsed().as_millis() as i32);
+            sync_state.end_sync();
             return Err(e);
         }
     };
@@ -261,7 +275,8 @@ pub async fn sync_simplefin(
         Ok(accts) => accts,
         Err(e) => {
             let error_msg = format!("Failed to retrieve accounts after upsert: {:?}", e);
-            db.insert_sync_log("failed", transaction_count, Some(&error_msg), start_time.elapsed().as_millis() as i32)?;
+            let _ = db.insert_sync_log("failed", transaction_count, Some(&error_msg), start_time.elapsed().as_millis() as i32);
+            sync_state.end_sync();
             return Err(e);
         }
     };
@@ -271,7 +286,8 @@ pub async fn sync_simplefin(
         Ok(txns) => txns,
         Err(e) => {
             let error_msg = format!("{:?}", e);
-            db.insert_sync_log("failed", transaction_count, Some(&error_msg), start_time.elapsed().as_millis() as i32)?;
+            let _ = db.insert_sync_log("failed", transaction_count, Some(&error_msg), start_time.elapsed().as_millis() as i32);
+            sync_state.end_sync();
             return Err(e);
         }
     };
@@ -295,7 +311,8 @@ pub async fn sync_simplefin(
         }
     } else {
         let error_msg = "No accounts found after sync";
-        db.insert_sync_log("failed", transaction_count, Some(error_msg), start_time.elapsed().as_millis() as i32)?;
+        let _ = db.insert_sync_log("failed", transaction_count, Some(error_msg), start_time.elapsed().as_millis() as i32);
+        sync_state.end_sync();
         return Err(AppError::Database("No accounts available for transaction assignment".to_string()));
     }
 
@@ -349,6 +366,9 @@ pub async fn sync_simplefin(
         None,
         start_time.elapsed().as_millis() as i32,
     )?;
+
+    // Mark sync as complete
+    sync_state.end_sync();
 
     Ok(SyncStatus {
         in_progress: false,
@@ -611,12 +631,15 @@ pub async fn get_settings(db: State<'_, Database>) -> Result<AllSettings> {
 }
 
 #[tauri::command]
-pub async fn get_sync_status(db: State<'_, Database>) -> Result<SyncStatus> {
+pub async fn get_sync_status(
+    db: State<'_, Database>,
+    sync_state: State<'_, crate::sync_state::SyncState>,
+) -> Result<SyncStatus> {
     // Get the last sync record from the database
     let last_sync_info = db.get_last_sync_info()?;
 
     Ok(SyncStatus {
-        in_progress: false, // TODO: Implement in-memory sync state tracking
+        in_progress: sync_state.is_in_progress(),
         last_sync: last_sync_info.as_ref().map(|(ts, _)| *ts),
         last_error: last_sync_info.as_ref().and_then(|(_, err)| err.clone()),
         transaction_count: 0, // TODO: Get from last sync_log entry

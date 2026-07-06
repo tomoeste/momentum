@@ -13,9 +13,11 @@ mod models;
 mod calculator;
 mod keychain;
 mod sync_orchestrator;
+mod sync_state;
 
 use db::Database;
 use llm::LlmClient;
+use sync_state::SyncState;
 
 fn main() {
     // Initialize logging
@@ -47,10 +49,12 @@ fn main() {
         .or_else(|| keychain::Keychain::retrieve_llm_api_key().ok());
 
     let llm_client = LlmClient::new(ollama_url, api_key);
+    let sync_state = SyncState::new();
 
     tauri::Builder::default()
         .manage(database)
         .manage(llm_client)
+        .manage(sync_state)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_dashboard_metrics,
