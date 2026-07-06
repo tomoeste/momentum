@@ -1,8 +1,38 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓** **LLM Error Path Tests ✓** **DB Constraint Tests ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.16 (LLM Error Path Tests)
+**Version**: 0.0.17 (DB Constraint Tests)
+
+## Session 0.0.17 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **Database Constraint Tests (Track E)** - 5 new tests
+   - [x] test_account_id_uniqueness: Primary key enforcement
+   - [x] test_categorized_transaction_requires_raw_transaction: FK validation
+   - [x] test_categorized_transaction_with_valid_transaction: Valid FK reference
+   - [x] test_account_with_no_simplefin_id_allowed: NULL constraint handling
+   - [x] test_multiple_accounts_same_name_allowed: Non-unique column verification
+
+2. **Test Coverage Enhancement**
+   - [x] Total DB integration tests: 22 (17 original + 5 new)
+   - [x] Database constraint verification for data integrity
+   - [x] PK/FK/NULL/UNIQUE constraint behavior validation
+
+3. **Overall Test Status**
+   - [x] 61 Rust library tests passing (56 original + 5 new DB tests)
+   - [x] 39 Rust main tests passing
+   - [x] 58 TypeScript tests passing
+   - [x] Total: 158 tests passing
+   - [x] Zero compiler warnings
+
+4. **Data Integrity Verification**
+   - [x] Foreign key constraint enforcement (prevents orphaned records)
+   - [x] Primary key uniqueness (prevents duplicate accounts)
+   - [x] NULL column handling (allows flexible account creation)
+
+---
 
 ## Session 0.0.16 Completion Summary
 
