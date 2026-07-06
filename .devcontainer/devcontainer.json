@@ -1,0 +1,22 @@
+{
+  "name": "claude-ralph-loop",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "agent",
+  "containerEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/work,type=bind"
+  ],
+  "workspaceFolder": "/work",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}

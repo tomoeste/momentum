@@ -54,12 +54,12 @@ while true; do
 
     # Run Ralph iteration with selected prompt
     # -p: Headless mode (non-interactive, reads from stdin)
-    # --enable-auto-mode: Auto-approve all tasks and actions (no manual confirmation)
+    # --dangerously-skip-permissions: Bypass all permission checks (use with caution)
     # --output-format=stream-json: Structured output for logging/monitoring
     # --model haiku: Primary agent uses Haiku model for reasoning and planning
     # --verbose: Detailed execution logging
     cat "$PROMPT_FILE" | claude -p \
-        --enable-auto-mode \
+        --dangerously-skip-permissions \
         --output-format=stream-json \
         --model haiku \
         --verbose
