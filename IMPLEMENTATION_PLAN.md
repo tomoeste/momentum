@@ -1,7 +1,21 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Greenfield. Reprioritized to unblock backend/frontend parallelization.
+**Status**: Sprint 0 (Specs) ✓ COMPLETE. CP1 (Skeleton) ✓ COMPLETE. Now executing CP2/CP3 in parallel.
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
+
+## Current Blockers & Priorities
+
+**IMMEDIATE (blocking all progress)**:
+- **Build Environment**: Rust compilation needs C compiler (gcc/g++). Container is missing build tools. Must install or use vendored deps.
+
+**NEXT (unblocked by specs)**:
+1. **CP2 - Database Layer**: Implement query methods + connection pooling (~1 day)
+2. **CP3 - Command Handlers**: Implement 9 Tauri commands using specs 01-05 (~2 days)
+3. **Parallel Track A - SimpleFIN Client**: Fetch accounts/transactions (~1 day)
+4. **Parallel Track B - Dashboard UI**: Wire mocked commands, build metric cards (~1 day)
+
+**After CP3 + Track A**:
+- Parallel Tracks C-E: Settings UI, LLM categorization, sync orchestration
 
 ---
 
@@ -73,24 +87,38 @@
   - ✓ Rust: logging initialization in main.rs
   - **Pending**: React logging integration
 
-### CP2 — Database layer (needs Sprint-0 #1,#2)
-- [ ] Create `raw_transactions` table + indexes (posted_date, account_id)
-- [ ] Create `accounts` table + index (simplefin_account_id) `[BLOCKED:1]`
-- [ ] Create `categorized_transactions` table (FK -> raw.id)
-- [ ] Create `debt_accounts` table (interest_rate, minimum_payment user-set) `[BLOCKED:5]`
-- [ ] Create `sync_log` table + index (sync_date)
+### CP2 — Database layer (needs Sprint-0 #1,#2 - ✓ NOW UNBLOCKED)
+- [x] Create `raw_transactions` table + indexes (posted_date, account_id)
+  - ✓ Schema in src-tauri/src/db.rs (CREATE TABLE in init_schema)
+- [x] Create `accounts` table + index (simplefin_account_id)
+  - ✓ Schema defined per spec 01_accounts_schema.md
+- [x] Create `categorized_transactions` table (FK -> raw.id)
+  - ✓ Schema in db.rs with confidence, is_manual fields
+- [x] Create `debt_accounts` table (APR, minimum_payment)
+  - ✓ Schema per spec 05_apr_minpayment.md
+- [x] Create `sync_log` table + index (sync_date)
+  - ✓ Schema in db.rs
 - [ ] Migration/init system (Rust-side, versioned)
-- [ ] Connection pool (rusqlite/sqlx) + query helpers (insert/update/read)
-- [ ] Rust structs: Transaction, Account, DebtAccount, Categorized, SyncLog
+  - ✓ Basic init_schema() exists; needs versioning for schema changes
+- [ ] Implement query methods in db.rs (insert/read/update)
+  - ✓ Method stubs present; need actual implementation
+- [ ] Connection pool (rusqlite via bundled SQLite)
+  - ✓ Dependency present; needs pool initialization
 
-### CP3 — Tauri command layer (needs Sprint-0 #3,#4; unblocks frontend real data)
-- [ ] Implement command handlers per frozen signatures `[BLOCKED:2]`
-  - get_dashboard_metrics, get_sparkline_data, sync_simplefin
-  - get_transactions(filters), get_transaction_detail(id)
-  - recategorize_transaction(...), get_opportunity_scenarios
-  - get_sync_status, get_accounts, set_debt_terms(apr, min_payment) `[BLOCKED:5]`
+### CP3 — Tauri command layer (needs Sprint-0 #2; unblocks frontend real data)
+- [ ] Implement command handlers per frozen signatures (spec 02)
+  - [x] Stubs created in src-tauri/src/commands.rs for all 9 commands
+  - [ ] **TO DO**: Implement actual logic:
+    - get_dashboard_metrics: aggregate metrics per period
+    - get_transactions: query with filters + sorting
+    - sync_simplefin: call SimpleFIN client, upsert accounts/transactions
+    - recategorize_transaction: update categorized_transactions table
+    - get_opportunity_scenarios: calculate using amortization model (spec 03)
+    - set_debt_terms: validate and store APR/min_payment (spec 05)
 - [ ] Result/AppError propagation + input validation
-- [ ] Generate/write TS bindings `src/lib/tauri-commands.ts`
+  - ✓ AppError enum defined in errors.rs
+  - [ ] Need validation logic in command handlers
+- [ ] Generate TypeScript bindings (from Rust types via serde)
 
 ---
 
