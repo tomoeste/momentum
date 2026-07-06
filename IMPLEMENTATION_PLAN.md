@@ -1,8 +1,36 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.13 (Database Integration Tests + Bug Fix)
+**Version**: 0.0.14 (Component Tests + Test Infrastructure)
+
+## Session 0.0.14 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **Component Tests (Track E continuation)** - 49 new tests
+   - [x] Header component: 12 tests (rendering, button clicks, last sync formatting, sync state)
+   - [x] TransactionList component: 23 tests (data loading, filtering, sorting, pagination)
+   - [x] SettingsModal component: 14 tests (tab rendering, settings loading, modal interactions)
+   - [x] React Testing Library setup: installed all dependencies and configured jsdom
+   - [x] Test infrastructure: mocked Tauri API in setup.ts, window.matchMedia mock
+
+2. **Test Infrastructure Enhancement**
+   - [x] Installed @testing-library/react, @testing-library/user-event, @testing-library/jest-dom, jsdom
+   - [x] Updated vite.config.ts to use jsdom test environment
+   - [x] Enhanced src/test/setup.ts with React Testing Library configuration
+
+3. **Test Status**
+   - [x] 58 TypeScript tests passing (9 existing calculations + 49 new component tests)
+   - [x] All Rust tests still passing (32 tests)
+   - [x] npm test passes with 58 tests, no failures
+
+4. **Build & Test Verification**
+   - [x] `npm test` passes (58 TypeScript tests)
+   - [x] `cargo test` passes (32 Rust tests)
+   - [x] Created version tag 0.0.14
+
+---
 
 ## Session 0.0.13 Completion Summary
 
@@ -368,28 +396,21 @@
 
 **NEXT (ready to start)**:
 
-1. **Component Tests** (Track E continuation) - Requires new test library
-   - Add React Testing Library for component testing
-   - Test SettingsModal component with user interactions
-   - Test TransactionList filtering and pagination
-   - Test Header sync button and status display
-   - Priority: MEDIUM (validates UI logic, catches regressions)
-
-2. **SimpleFIN Sync Integration Tests** (Track E) - Requires HTTP mocking
+1. **SimpleFIN Sync Integration Tests** (Track E) - Requires HTTP mocking
    - Add wiremock or similar for HTTP response mocking
    - Test complete sync flow: claim → fetch accounts → fetch transactions → store
    - Test error scenarios: network timeout, invalid credentials, malformed responses
    - Test partial failure recovery (some accounts succeed, others fail)
    - Priority: MEDIUM (critical data pipeline validation)
 
-3. **Error Path Tests** (Track E) - Test failure scenarios
+2. **Error Path Tests** (Track E) - Test failure scenarios
    - Failed sync recovery and retry logic
    - Network timeout handling
    - Malformed API response handling
    - Database constraint violations
    - Priority: MEDIUM (ensures robustness)
 
-4. **Performance & Polish**:
+3. **Performance & Polish**:
    - Performance profiling with real data (1K+ transactions)
    - Virtualized table for TransactionList (optional optimization)
    - "Recategorize all" bulk action with progress bar
