@@ -14,7 +14,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = 'simplefin' | 'debt-terms' | 'about'
+type SettingsTab = 'simplefin' | 'debt-terms' | 'llm-config' | 'sync-settings' | 'ui-prefs' | 'about'
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [tab, setTab] = useState<SettingsTab>('simplefin')
@@ -28,12 +28,43 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [debtTermsForm, setDebtTermsForm] = useState<Record<string, { apr: string; minPayment: string }>>({})
 
+  // LLM Configuration state
+  const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434')
+  const [apiKey, setApiKey] = useState('')
+  const [llmModel, setLlmModel] = useState('mistral')
+  const [useLocalFirst, setUseLocalFirst] = useState(true)
+
+  // Sync Settings state
+  const [syncFrequency, setSyncFrequency] = useState<'manual' | 'on-open' | '12h' | '24h'>('on-open')
+  const [backfillDays, setBackfillDays] = useState('90')
+  const [enableBackgroundSync, setEnableBackgroundSync] = useState(false)
+
+  // UI Preferences state
+  const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('dark')
+  const [currency, setCurrency] = useState('USD')
+
   useEffect(() => {
     if (isOpen) {
       loadSimplefinStatus()
       loadAccounts()
+      loadSettings()
     }
   }, [isOpen])
+
+  function loadSettings() {
+    const saved = localStorage.getItem('momentum_settings')
+    if (saved) {
+      const settings = JSON.parse(saved)
+      if (settings.ollama_url) setOllamaUrl(settings.ollama_url)
+      if (settings.llm_model) setLlmModel(settings.llm_model)
+      if (settings.use_local_first !== undefined) setUseLocalFirst(settings.use_local_first)
+      if (settings.sync_frequency) setSyncFrequency(settings.sync_frequency)
+      if (settings.backfill_days) setBackfillDays(settings.backfill_days)
+      if (settings.enable_background_sync !== undefined) setEnableBackgroundSync(settings.enable_background_sync)
+      if (settings.theme) setTheme(settings.theme)
+      if (settings.currency) setCurrency(settings.currency)
+    }
+  }
 
   async function loadSimplefinStatus() {
     try {
@@ -139,6 +170,88 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   }
 
+  async function handleSaveLlmConfig() {
+    if (!ollamaUrl.trim()) {
+      setError('Please enter an Ollama URL')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      // TODO: Call backend command to save LLM config and validate Ollama connection
+      // For now, save to localStorage
+      localStorage.setItem('momentum_settings', JSON.stringify({
+        ollama_url: ollamaUrl,
+        llm_model: llmModel,
+        use_local_first: useLocalFirst,
+        api_key: apiKey, // TODO: Store in keychain instead of localStorage
+      }))
+      setMessage('LLM configuration saved')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save LLM configuration')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSaveSyncSettings() {
+    const days = parseInt(backfillDays)
+    if (isNaN(days) || days < 1 || days > 3650) {
+      setError('Backfill days must be between 1 and 3650')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      // TODO: Call backend command to save sync settings
+      // For now, save to localStorage
+      localStorage.setItem('momentum_settings', JSON.stringify({
+        sync_frequency: syncFrequency,
+        backfill_days: backfillDays,
+        enable_background_sync: enableBackgroundSync,
+      }))
+      setMessage('Sync settings saved')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save sync settings')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSaveUiPreferences() {
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      // TODO: Call backend command to save UI preferences
+      // For now, save to localStorage
+      localStorage.setItem('momentum_settings', JSON.stringify({
+        theme,
+        currency,
+      }))
+
+      // Apply theme to document if needed
+      if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+
+      setMessage('UI preferences saved')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save UI preferences')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -168,10 +281,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-700 px-6">
+        <div className="flex flex-wrap border-b border-gray-700 px-6 overflow-x-auto">
           <button
             onClick={() => setTab('simplefin')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors ${
+            className={`px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
               tab === 'simplefin'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-white'
@@ -181,7 +294,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </button>
           <button
             onClick={() => setTab('debt-terms')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors ${
+            className={`px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
               tab === 'debt-terms'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-white'
@@ -190,8 +303,38 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             Debt Terms
           </button>
           <button
+            onClick={() => setTab('llm-config')}
+            className={`px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+              tab === 'llm-config'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            LLM Config
+          </button>
+          <button
+            onClick={() => setTab('sync-settings')}
+            className={`px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+              tab === 'sync-settings'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            Sync Settings
+          </button>
+          <button
+            onClick={() => setTab('ui-prefs')}
+            className={`px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+              tab === 'ui-prefs'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            UI Preferences
+          </button>
+          <button
             onClick={() => setTab('about')}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors ${
+            className={`px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
               tab === 'about'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-white'
@@ -336,19 +479,209 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           )}
 
+          {/* LLM Configuration Tab */}
+          {tab === 'llm-config' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">LLM Configuration</h3>
+              <p className="text-gray-400 text-sm">
+                Configure transaction categorization. Momentum uses local Ollama for privacy, with API fallback.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Ollama URL</label>
+                  <input
+                    type="text"
+                    placeholder="http://localhost:11434"
+                    value={ollamaUrl}
+                    onChange={(e) => setOllamaUrl(e.target.value)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Local Ollama instance endpoint</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Model</label>
+                  <select
+                    value={llmModel}
+                    onChange={(e) => setLlmModel(e.target.value)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="mistral">Mistral</option>
+                    <option value="llama2">Llama 2</option>
+                    <option value="neural-chat">Neural Chat</option>
+                    <option value="openchat">Open Chat</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">API Key (optional)</label>
+                  <input
+                    type="password"
+                    placeholder="sk-..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">For API fallback (Claude, etc.)</p>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="use-local-first"
+                    checked={useLocalFirst}
+                    onChange={(e) => setUseLocalFirst(e.target.checked)}
+                    disabled={loading}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 cursor-pointer"
+                  />
+                  <label htmlFor="use-local-first" className="text-sm text-gray-400 cursor-pointer">
+                    Use local Ollama first, fall back to API if unavailable
+                  </label>
+                </div>
+
+                <button
+                  onClick={handleSaveLlmConfig}
+                  disabled={loading}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium transition-colors"
+                >
+                  {loading ? 'Saving...' : 'Save LLM Configuration'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sync Settings Tab */}
+          {tab === 'sync-settings' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">Sync Settings</h3>
+              <p className="text-gray-400 text-sm">
+                Control how SimpleFIN data is synced and categorized.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Sync Frequency</label>
+                  <select
+                    value={syncFrequency}
+                    onChange={(e) => setSyncFrequency(e.target.value as any)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="manual">Manual only</option>
+                    <option value="on-open">On app open (if &gt;24h)</option>
+                    <option value="12h">Every 12 hours</option>
+                    <option value="24h">Every 24 hours</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Backfill Range (days)</label>
+                  <input
+                    type="number"
+                    placeholder="90"
+                    min="1"
+                    max="3650"
+                    value={backfillDays}
+                    onChange={(e) => setBackfillDays(e.target.value)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">How far back to sync transactions on each sync</p>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="enable-background-sync"
+                    checked={enableBackgroundSync}
+                    onChange={(e) => setEnableBackgroundSync(e.target.checked)}
+                    disabled={loading}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 cursor-pointer"
+                  />
+                  <label htmlFor="enable-background-sync" className="text-sm text-gray-400 cursor-pointer">
+                    Enable background sync (app continues running in background)
+                  </label>
+                </div>
+
+                <button
+                  onClick={handleSaveSyncSettings}
+                  disabled={loading}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium transition-colors"
+                >
+                  {loading ? 'Saving...' : 'Save Sync Settings'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* UI Preferences Tab */}
+          {tab === 'ui-prefs' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">UI Preferences</h3>
+              <p className="text-gray-400 text-sm">
+                Customize the appearance and display format.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Theme</label>
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value as any)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="auto">Auto (system preference)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Currency</label>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    disabled={loading}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="CAD">CAD (C$)</option>
+                    <option value="AUD">AUD (A$)</option>
+                    <option value="JPY">JPY (¥)</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleSaveUiPreferences}
+                  disabled={loading}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium transition-colors"
+                >
+                  {loading ? 'Saving...' : 'Save UI Preferences'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* About Tab */}
           {tab === 'about' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-white">About Momentum</h3>
               <div className="space-y-2 text-gray-400 text-sm">
                 <p>
-                  <strong className="text-white">Version:</strong> 0.0.4
+                  <strong className="text-white">Version:</strong> 0.0.5
                 </p>
                 <p>
                   <strong className="text-white">Description:</strong> Local-first budgeting app with cash flow momentum metrics
                 </p>
                 <p className="pt-2">
-                  Momentum uses SimpleFIN to securely sync your financial accounts. Your data is stored locally on your device.
+                  Momentum uses SimpleFIN to securely sync your financial accounts. Transaction categorization uses local Ollama AI with optional Claude API fallback. Your data is stored locally on your device.
                 </p>
               </div>
             </div>
