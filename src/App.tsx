@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, Period, DashboardMetrics, GetOpportunityScenariosResponse } from './lib/tauri-commands'
+import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, shouldSyncOnOpen, Period, DashboardMetrics, GetOpportunityScenariosResponse } from './lib/tauri-commands'
 import { Header } from './components/Header'
 import { SettingsModal } from './components/SettingsModal'
 import { TransactionList } from './components/TransactionList'
@@ -26,9 +26,41 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Check if sync should run on app open (>24h since last sync)
+  useEffect(() => {
+    checkAndSync()
+  }, [])
+
+  // Load data when period changes
   useEffect(() => {
     loadData()
   }, [period])
+
+  async function checkAndSync() {
+    try {
+      const shouldSync = await shouldSyncOnOpen()
+      if (shouldSync) {
+        console.log('Auto-syncing: more than 24 hours since last sync')
+        setSyncing(true)
+        try {
+          await syncSimpleFin({ days_back: 90 })
+          await loadData()
+        } catch (err) {
+          console.error('Auto-sync failed:', err)
+          // Don't show error to user on auto-sync failure; they can manually retry
+        } finally {
+          setSyncing(false)
+        }
+      } else {
+        // Just load initial data if no sync needed
+        await loadData()
+      }
+    } catch (err) {
+      console.error('Failed to check sync status:', err)
+      // Still load data even if check fails
+      await loadData()
+    }
+  }
 
   async function loadData() {
     try {
