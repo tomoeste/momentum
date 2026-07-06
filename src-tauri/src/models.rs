@@ -76,11 +76,15 @@ pub struct DebtAccount {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardMetrics {
     pub period: Period,
+    pub period_start: String,  // ISO 8601 date (YYYY-MM-DD)
+    pub period_end: String,    // ISO 8601 date (YYYY-MM-DD)
     pub income: f64,
     pub spending: f64,
     pub debt_paydown: f64,
     pub interest_paid: f64,
     pub debt_ratio: f64,
+    pub interest_as_pct_income: f64,  // percentage 0.0..100.0+
+    pub sparkline_data: Vec<DailyMetrics>,
     pub last_sync: Option<DateTime<Utc>>,
 }
 
@@ -91,7 +95,17 @@ pub enum Period {
     Month,
 }
 
-// Sparkline data point
+// Daily metrics for sparkline
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DailyMetrics {
+    pub date: String,  // YYYY-MM-DD
+    pub income: f64,
+    pub spending: f64,
+    pub debt_paydown: f64,
+    pub interest_paid: f64,
+}
+
+// Sparkline data point (legacy, kept for compatibility)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SparklinePoint {
     pub date: DateTime<Utc>,

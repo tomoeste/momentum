@@ -23,6 +23,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 anyhow = "1.0"
 thiserror = "1.0"
+dirs = "5.0"
 
 [lib]
 name = "momentum_lib"

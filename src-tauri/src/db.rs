@@ -83,6 +83,7 @@ impl Database {
             );
 
             CREATE INDEX IF NOT EXISTS idx_sync_log_sync_date ON sync_log(sync_date);
+            CREATE INDEX IF NOT EXISTS idx_categorized_transactions_category ON categorized_transactions(category);
             "
         ).map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -312,5 +313,176 @@ impl Database {
         };
 
         Ok(transactions)
+    }
+
+    pub fn get_metrics(&self, start_date: &str, end_date: &str) -> Result<(f64, f64, f64, f64)> {
+        let conn = self.conn.lock().unwrap();
+        let sql = "SELECT
+            COALESCE((
+                SELECT SUM(rt.amount)
+                FROM raw_transactions rt
+                JOIN accounts a ON a.id = rt.account_id
+                WHERE rt.amount > 0
+                  AND a.account_type IN ('checking', 'savings')
+                  AND date(rt.posted_date) BETWEEN date(?) AND date(?)
+            ), 0.0) AS income,
+
+            COALESCE((
+                SELECT SUM(ABS(rt.amount))
+                FROM raw_transactions rt
+                JOIN accounts a ON a.id = rt.account_id
+                LEFT JOIN categorized_transactions ct ON ct.id = rt.id
+                WHERE rt.amount < 0
+                  AND a.account_type IN ('checking', 'savings')
+                  AND date(rt.posted_date) BETWEEN date(?) AND date(?)
+                  AND COALESCE(ct.category, '') NOT IN ('Transfers', 'Interest', 'Debt Payments')
+            ), 0.0) AS spending,
+
+            COALESCE((
+                SELECT SUM(rt.amount)
+                FROM raw_transactions rt
+                JOIN accounts a ON a.id = rt.account_id
+                WHERE rt.amount > 0
+                  AND a.account_type IN ('credit_card', 'loan')
+                  AND date(rt.posted_date) BETWEEN date(?) AND date(?)
+            ), 0.0) AS debt_paydown,
+
+            COALESCE((
+                SELECT SUM(rt.amount)
+                FROM raw_transactions rt
+                JOIN categorized_transactions ct ON ct.id = rt.id
+                WHERE ct.category = 'Interest'
+                  AND date(rt.posted_date) BETWEEN date(?) AND date(?)
+            ), 0.0) AS interest_paid";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| AppError::Database(e.to_string()))?;
+        let (income, spending, debt_paydown, interest_paid) = stmt.query_row(
+            params![start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        ).map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok((income, spending, debt_paydown, interest_paid))
+    }
+
+    pub fn get_debt_ratio(&self) -> Result<f64> {
+        let conn = self.conn.lock().unwrap();
+        let sql = "SELECT
+            COALESCE((SELECT SUM(current_balance) FROM debt_accounts), 0.0) AS total_debt,
+            COALESCE((SELECT SUM(balance) FROM accounts), 0.0) AS total_assets";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| AppError::Database(e.to_string()))?;
+        let (total_debt, total_assets): (f64, f64) = stmt.query_row(
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(if total_assets > 0.0 {
+            total_debt / total_assets
+        } else {
+            0.0
+        })
+    }
+
+    pub fn get_sparkline(&self, end_date: &str) -> Result<Vec<crate::models::DailyMetrics>> {
+        let conn = self.conn.lock().unwrap();
+        let sql = "WITH RECURSIVE days(day) AS (
+            SELECT date(?, '-27 days')
+            UNION ALL
+            SELECT date(day, '+1 day') FROM days WHERE day < date(?)
+        ),
+        income_daily AS (
+            SELECT date(rt.posted_date) AS day, SUM(rt.amount) AS total
+            FROM raw_transactions rt
+            JOIN accounts a ON a.id = rt.account_id
+            WHERE rt.amount > 0 AND a.account_type IN ('checking', 'savings')
+            GROUP BY date(rt.posted_date)
+        ),
+        spending_daily AS (
+            SELECT date(rt.posted_date) AS day, SUM(ABS(rt.amount)) AS total
+            FROM raw_transactions rt
+            JOIN accounts a ON a.id = rt.account_id
+            LEFT JOIN categorized_transactions ct ON ct.id = rt.id
+            WHERE rt.amount < 0
+              AND a.account_type IN ('checking', 'savings')
+              AND COALESCE(ct.category, '') NOT IN ('Transfers', 'Interest', 'Debt Payments')
+            GROUP BY date(rt.posted_date)
+        ),
+        debt_paydown_daily AS (
+            SELECT date(rt.posted_date) AS day, SUM(rt.amount) AS total
+            FROM raw_transactions rt
+            JOIN accounts a ON a.id = rt.account_id
+            WHERE rt.amount > 0 AND a.account_type IN ('credit_card', 'loan')
+            GROUP BY date(rt.posted_date)
+        ),
+        interest_daily AS (
+            SELECT date(rt.posted_date) AS day, SUM(rt.amount) AS total
+            FROM raw_transactions rt
+            JOIN categorized_transactions ct ON ct.id = rt.id
+            WHERE ct.category = 'Interest'
+            GROUP BY date(rt.posted_date)
+        )
+        SELECT
+            d.day AS date,
+            COALESCE(i.total, 0.0) AS income,
+            COALESCE(s.total, 0.0) AS spending,
+            COALESCE(dp.total, 0.0) AS debt_paydown,
+            COALESCE(it.total, 0.0) AS interest_paid
+        FROM days d
+        LEFT JOIN income_daily i ON i.day = d.day
+        LEFT JOIN spending_daily s ON s.day = d.day
+        LEFT JOIN debt_paydown_daily dp ON dp.day = d.day
+        LEFT JOIN interest_daily it ON it.day = d.day
+        ORDER BY d.day ASC";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| AppError::Database(e.to_string()))?;
+        let sparkline = stmt.query_map(
+            params![end_date, end_date],
+            |row| {
+                Ok(crate::models::DailyMetrics {
+                    date: row.get(0)?,
+                    income: row.get(1)?,
+                    spending: row.get(2)?,
+                    debt_paydown: row.get(3)?,
+                    interest_paid: row.get(4)?,
+                })
+            },
+        ).map_err(|e| AppError::Database(e.to_string()))?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(sparkline)
+    }
+
+    pub fn get_last_sync(&self) -> Result<Option<DateTime<Utc>>> {
+        let conn = self.conn.lock().unwrap();
+        let sql = "SELECT sync_date FROM sync_log WHERE status = 'success' ORDER BY sync_date DESC LIMIT 1";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| AppError::Database(e.to_string()))?;
+        let result = stmt.query_row([], |row| {
+            let date_str: String = row.get(0)?;
+            chrono::DateTime::parse_from_rfc3339(&date_str)
+                .ok()
+                .map(|dt| dt.with_timezone(&Utc))
+        }).optional().map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(result.flatten())
+    }
+
+    pub fn insert_sync_log(&self, status: &str, transaction_count: i32, error_message: Option<&str>, duration_ms: i32) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO sync_log (sync_date, status, transaction_count, error_message, duration_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                Utc::now().to_rfc3339(),
+                status,
+                transaction_count,
+                error_message,
+                duration_ms,
+            ],
+        )
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(())
     }
 }

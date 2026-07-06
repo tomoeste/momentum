@@ -70,14 +70,26 @@ export interface DebtAccount {
 
 export type Period = 'week' | 'month'
 
+export interface DailyMetrics {
+  date: string  // YYYY-MM-DD
+  income: number
+  spending: number
+  debt_paydown: number
+  interest_paid: number
+}
+
 export interface DashboardMetrics {
   period: Period
+  period_start: string  // ISO 8601 date (YYYY-MM-DD)
+  period_end: string    // ISO 8601 date (YYYY-MM-DD)
   income: number
   spending: number
   debt_paydown: number
   interest_paid: number
   debt_ratio: number
-  last_sync: string | null
+  interest_as_pct_income: number  // percentage 0.0..100.0+
+  sparkline_data: DailyMetrics[]
+  last_sync: string | null  // RFC3339 timestamp
 }
 
 export interface SyncStatus {
