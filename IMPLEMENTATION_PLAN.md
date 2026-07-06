@@ -39,6 +39,11 @@
    - [x] Confidence normalization edge cases
    - [x] Fallback behavior when Ollama unavailable
 
+5. **Compiler Warning Cleanup** (Quick Win)
+   - [x] Removed unused 'use super::*' from sync_orchestrator tests
+   - [x] Removed unused 'use_local_first' field from LlmClient struct
+   - [x] Result: Zero compiler warnings, all tests passing (95 Rust + 58 TS = 153 tests)
+
 ---
 
 ## Session 0.0.15 Completion Summary
@@ -476,14 +481,14 @@
    - Completed Session 0.0.15: HTTP mocking setup, account/transaction tests, error handling
    - Status: 45 Rust library tests passing (13 new + 32 original)
 
-**NEXT (ready to start)**:
+**PARTIALLY COMPLETED**:
 
 1. **Error Path Tests** (Track E) - Test failure scenarios
-   - Failed sync recovery and retry logic
-   - Network timeout handling
-   - Malformed API response handling
-   - Database constraint violations
-   - Priority: MEDIUM (ensures robustness)
+   - [x] SimpleFIN API error tests (completed Session 0.0.15)
+   - [x] LLM error path tests (completed Session 0.0.16)
+   - [ ] sync_simplefin command integration tests (for future work)
+
+**NEXT (ready to start)**:
 
 3. **Performance & Polish**:
    - Performance profiling with real data (1K+ transactions)
