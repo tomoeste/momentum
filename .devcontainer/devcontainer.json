@@ -11,7 +11,6 @@
     "source=${localWorkspaceFolder},target=/work,type=bind"
   ],
   "workspaceFolder": "/work",
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code",
   "customizations": {
     "vscode": {
       "extensions": [

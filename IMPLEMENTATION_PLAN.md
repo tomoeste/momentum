@@ -11,6 +11,7 @@
   - **Workaround**: Use `cargo check` for validation (stops after type checking, no linking)
   - **Long-term**: Deploy to environment with C compiler for final builds
   - **Alternative**: Switch to pure Rust DB (sled, embedded-postgres) if available
+  - **RESOLVED**: C compiler should now be installed.
 
 **NEXT (unblocked by specs)**:
 1. **CP2 - Database Layer**: Implement query methods + connection pooling (~1 day)

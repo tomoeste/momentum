@@ -40,6 +40,7 @@ Run these after implementing to get immediate feedback:
 **Build Environment Issues**:
 - Container lacks C compiler (gcc/g++). Rust crates with C dependencies (rusqlite, libc, serde-core) fail to compile without it.
 - Solution: Install build-essential in container, or switch to pure-Rust alternatives (e.g., sqlx over rusqlite).
+- **RESOLVED**: C compiler should now be installed - try compiling again to verify before removing this note.
 
 **Project Structure**:
 - Frontend: `/src/` (React + TypeScript)
