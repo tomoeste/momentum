@@ -3,6 +3,9 @@ import './App.css'
 import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, Period, DashboardMetrics, GetOpportunityScenariosResponse } from './lib/tauri-commands'
 import { Header } from './components/Header'
 import { SettingsModal } from './components/SettingsModal'
+import { TransactionList } from './components/TransactionList'
+
+type AppView = 'dashboard' | 'transactions'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -14,6 +17,7 @@ function formatCurrency(value: number): string {
 }
 
 function App() {
+  const [view, setView] = useState<AppView>('dashboard')
   const [period, setPeriod] = useState<Period>('month')
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [scenarios, setScenarios] = useState<GetOpportunityScenariosResponse | null>(null)
@@ -62,6 +66,16 @@ function App() {
     }
   }
 
+  // Handle view transitions
+  if (view === 'transactions') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+        <TransactionList onClose={() => setView('dashboard')} />
+        <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <Header
@@ -69,6 +83,7 @@ function App() {
         onSettingsClick={() => setSettingsOpen(true)}
         onSyncClick={handleSync}
         isSyncing={syncing}
+        onViewTransactions={() => setView('transactions')}
       />
 
       <main className="p-6 flex-1">
