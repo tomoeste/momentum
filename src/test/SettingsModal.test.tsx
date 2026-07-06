@@ -134,8 +134,7 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
     await waitFor(() => {
-      const disconnectButtons = screen.queryAllByRole('button', { name: /disconnect/i })
-      // May or may not have button depending on tab rendering
+      // SimpleFIN section should display when connected
       expect(screen.getByText(/SimpleFIN Integration/i)).toBeInTheDocument()
     })
   })
