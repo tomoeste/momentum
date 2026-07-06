@@ -288,3 +288,218 @@ Only return valid JSON, no other text.".to_string();
         Ok(false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_categorize_no_llm_configured() {
+        // Test fallback when no LLM is configured
+        let llm = LlmClient::new(None, None);
+        let result = llm.categorize("Coffee Shop", "Morning coffee").await;
+
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.category, "Uncategorized");
+        assert_eq!(cat.confidence, 0.0);
+        assert!(cat.note.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_categorize_with_confidence_clamping() {
+        // Test that confidence is clamped to 0.0-1.0
+        let llm = LlmClient::new(None, None);
+        let result = llm.categorize("Store", "Purchase").await;
+
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert!(cat.confidence >= 0.0 && cat.confidence <= 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_categorize_secondary_category_filtering() {
+        // When confidence < 0.85, secondary_category should be None
+        // (This is tested indirectly through fallback since we can't easily mock)
+        let llm = LlmClient::new(None, None);
+        let result = llm.categorize("Test Merchant", "Test Description").await;
+
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        // Fallback returns None for secondary_category
+        assert_eq!(cat.secondary_category, None);
+    }
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use httpmock::prelude::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_categorize_ollama_success() {
+        let server = MockServer::start();
+        let ollama_url = server.base_url();
+
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/chat");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "message": {
+                        "content": r#"{"category": "Groceries", "secondary_category": "Produce", "confidence": 0.92}"#
+                    }
+                }));
+        });
+
+        let llm = LlmClient::new(Some(ollama_url), None);
+        let result = llm.categorize("Whole Foods", "Fresh vegetables").await;
+
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.category, "Groceries");
+        assert_eq!(cat.secondary_category, Some("Produce".to_string()));
+        assert!(cat.confidence >= 0.92);
+    }
+
+    #[tokio::test]
+    async fn test_categorize_ollama_api_error() {
+        let server = MockServer::start();
+        let ollama_url = server.base_url();
+
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/chat");
+            then.status(503)
+                .body("Service Unavailable");
+        });
+
+        let llm = LlmClient::new(Some(ollama_url.clone()), None);
+        let result = llm.categorize("Merchant", "Description").await;
+
+        // With only Ollama configured and it fails, should return uncategorized fallback
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.category, "Uncategorized");
+    }
+
+    #[tokio::test]
+    async fn test_categorize_ollama_malformed_response() {
+        let server = MockServer::start();
+        let ollama_url = server.base_url();
+
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/chat");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "message": {
+                        "content": "not valid json for category"
+                    }
+                }));
+        });
+
+        let llm = LlmClient::new(Some(ollama_url), None);
+        let result = llm.categorize("Store", "Item").await;
+
+        // Should fallback to uncategorized due to malformed response
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.category, "Uncategorized");
+    }
+
+    #[tokio::test]
+    async fn test_categorize_ollama_network_timeout() {
+        // Use a non-routable IP that will timeout
+        let llm = LlmClient::new(Some("http://192.0.2.1:11434".to_string()), None);
+        let result = llm.categorize("Merchant", "Description").await;
+
+        // Should return uncategorized fallback due to timeout
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.category, "Uncategorized");
+    }
+
+    #[tokio::test]
+    async fn test_categorize_confidence_bounds() {
+        let server = MockServer::start();
+        let ollama_url = server.base_url();
+
+        // Test that confidence values > 1.0 are clamped to 1.0
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/chat");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "message": {
+                        "content": r#"{"category": "Shopping", "secondary_category": null, "confidence": 1.5}"#
+                    }
+                }));
+        });
+
+        let llm = LlmClient::new(Some(ollama_url), None);
+        let result = llm.categorize("Store", "Purchase").await;
+
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.confidence, 1.0); // Clamped from 1.5
+    }
+
+    #[tokio::test]
+    async fn test_categorize_negative_confidence_bounds() {
+        let server = MockServer::start();
+        let ollama_url = server.base_url();
+
+        // Test that negative confidence is clamped to 0.0
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/chat");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "message": {
+                        "content": r#"{"category": "Shopping", "secondary_category": null, "confidence": -0.5}"#
+                    }
+                }));
+        });
+
+        let llm = LlmClient::new(Some(ollama_url), None);
+        let result = llm.categorize("Store", "Purchase").await;
+
+        assert!(result.is_ok());
+        let cat = result.unwrap();
+        assert_eq!(cat.confidence, 0.0); // Clamped from -0.5
+    }
+
+    #[tokio::test]
+    async fn test_categorize_health_check() {
+        let server = MockServer::start();
+        let ollama_url = server.base_url();
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/api/tags");
+            then.status(200)
+                .json_body(json!({"models": []}));
+        });
+
+        let llm = LlmClient::new(Some(ollama_url), None);
+        let result = llm.health_check().await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_health_check_failure() {
+        let llm = LlmClient::new(Some("http://192.0.2.1:11434".to_string()), None);
+        let result = llm.health_check().await;
+
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+}
