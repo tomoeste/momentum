@@ -29,7 +29,8 @@ cargo tauri dev         # Launch dev app with hot reload (requires Rust toolchai
 
 - **Typecheck**: `npx tsc --noEmit` (runs in any environment; validates TypeScript)
 - **Rust check**: `cargo check` (needs Rust toolchain; validates without linking)
-- **Tests**: `npm test` (Vitest - not yet configured)
+- **Frontend tests**: `npm test` (Vitest configured; runs src/test/*.test.ts)
+- **Backend tests**: `cargo test` (runs Rust unit tests in each module)
 
 ## Database Testing
 
@@ -68,6 +69,7 @@ SELECT id, category, confidence FROM categorized_transactions WHERE id = 'txn_1'
 ## Codebase Patterns
 
 - **Error handling**: AppError enum (Database, SimpleFin, Llm, Validation, Config, Internal, Keychain, NotFound)
+- **SimpleFIN Integration**: Setup token must be base64-encoded; decoded to claim URL → POST to URL → receive access_url; stored securely in OS keychain
 - **Commands**: Async for I/O (SimpleFIN, metrics); sync for mutations; all return Result<T>
 - **Database**: rusqlite with named params; COALESCE for null safety; indexes on frequently-filtered columns
 - **Serialization**: serde (Rust) ↔ JSON ↔ TypeScript type mapping in tauri-commands.ts
@@ -76,6 +78,7 @@ SELECT id, category, confidence FROM categorized_transactions WHERE id = 'txn_1'
 - **Settings Persistence**: localStorage for UI preferences (view toggle, filters); keychain for sensitive credentials (SimpleFIN access_url, LLM API keys)
 - **Transaction Management**: getTransactions command supports filtering by account/category/date; recategorize_transaction for user overrides (sets confidence=1.0)
 - **View System**: App.tsx toggles between Dashboard and Transaction List views; TransactionList component provides filtering and recategorization UI
+- **Error Recovery**: Sync errors displayed prominently with retry button; users can immediately retry failed operations without re-entering credentials
 
 ## Testing Checklist
 
