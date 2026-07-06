@@ -4,6 +4,7 @@ import { getDashboardMetrics, getOpportunityScenarios, syncSimpleFin, shouldSync
 import { Header } from './components/Header'
 import { SettingsModal } from './components/SettingsModal'
 import { TransactionList } from './components/TransactionList'
+import { syncScheduler } from './lib/sync-scheduler'
 
 type AppView = 'dashboard' | 'transactions'
 
@@ -29,6 +30,14 @@ function App() {
   // Check if sync should run on app open (>24h since last sync)
   useEffect(() => {
     checkAndSync()
+
+    // Start sync scheduler for frequency-based syncing
+    syncScheduler.start()
+
+    // Cleanup on unmount
+    return () => {
+      syncScheduler.stop()
+    }
   }, [])
 
   // Load data when period changes
