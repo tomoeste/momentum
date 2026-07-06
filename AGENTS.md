@@ -80,6 +80,33 @@ SELECT id, category, confidence FROM categorized_transactions WHERE id = 'txn_1'
 - **View System**: App.tsx toggles between Dashboard and Transaction List views; TransactionList component provides filtering and recategorization UI
 - **Error Recovery**: Sync errors displayed prominently with retry button; users can immediately retry failed operations without re-entering credentials
 
+## Test Infrastructure
+
+**HTTP Mocking with httpmock:**
+- SimpleFIN API tests use MockServer (localhost mock) for HTTP simulation
+- LLM tests mock both Ollama and Claude API endpoints
+- Location: src-tauri/src/simplefin.rs::integration_tests, src-tauri/src/llm.rs::integration_tests
+- Pattern: MockServer::start(), mock(|when, then| {...}), then execute test
+
+**Database Testing:**
+- In-memory SQLite (":memory:") for test isolation
+- Location: src-tauri/src/db_integration_tests.rs
+- Setup helpers: create_test_account, create_test_transaction, create_test_categorization
+- 22 tests cover CRUD, constraints, aggregation, pagination
+
+**React Component Testing:**
+- Vitest + React Testing Library configuration in vite.config.ts
+- Mocked Tauri API in src/test/setup.ts
+- 49 component tests for Header, TransactionList, SettingsModal
+- Pattern: render component, mock API responses, assert on DOM
+
+**Test Organization:**
+- Unit tests: calculation logic, token validation
+- Integration tests: HTTP mocking for external APIs
+- Database tests: constraint validation, CRUD operations
+- Component tests: React behavior and user interactions
+- Total: 158 tests (61 lib + 39 main + 58 TS), 0 warnings
+
 ## Testing Checklist
 
 - [ ] LLM categorization works (check Tauri logs for ollama requests; verify categorized_transactions has reasonable categories)
