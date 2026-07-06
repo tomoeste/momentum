@@ -283,3 +283,331 @@ mod tests {
         assert!(result.is_ok());
     }
 }
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use httpmock::prelude::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_claim_token_network_error() {
+        // Test that claim_token fails when network is unavailable
+        // Using an invalid base64-decoded HTTPS URL that cannot be reached
+        let invalid_token = general_purpose::STANDARD.encode("https://localhost:1/nonexistent");
+        let result = SimpleFin::claim_token(&invalid_token).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to claim token"));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_accounts_success() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "accounts": [
+                        {
+                            "id": "acc_123",
+                            "name": "Checking",
+                            "currency": "USD",
+                            "balance": {
+                                "amount": 1000.0,
+                                "timestamp": 1234567890
+                            },
+                            "account_type": "checking"
+                        }
+                    ]
+                }));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_accounts().await;
+
+        assert!(result.is_ok());
+        let accounts = result.unwrap();
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0].id, "acc_123");
+        assert_eq!(accounts[0].name, "Checking");
+        assert_eq!(accounts[0].balance, 1000.0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_accounts_multiple() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "accounts": [
+                        {
+                            "id": "acc_123",
+                            "name": "Checking",
+                            "currency": "USD",
+                            "balance": { "amount": 1000.0, "timestamp": 1234567890 },
+                            "account_type": "checking"
+                        },
+                        {
+                            "id": "acc_456",
+                            "name": "Credit Card",
+                            "currency": "USD",
+                            "balance": { "amount": 5000.0, "timestamp": 1234567890 },
+                            "account_type": "credit"
+                        }
+                    ]
+                }));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_accounts().await;
+
+        assert!(result.is_ok());
+        let accounts = result.unwrap();
+        assert_eq!(accounts.len(), 2);
+        assert_eq!(accounts[0].account_type, AccountType::Checking);
+        assert_eq!(accounts[1].account_type, AccountType::CreditCard);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_accounts_api_error() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(403)
+                .body("Forbidden");
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_accounts().await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("failed"));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_accounts_empty_list() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({"accounts": []}));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_accounts().await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_transactions_success() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path_contains("/transactions")
+                .query_param_exists("start");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "transactions": [
+                        {
+                            "id": "txn_123",
+                            "posted_date": "2024-01-15T10:30:00Z",
+                            "amount": -50.0,
+                            "merchant": "Coffee Shop",
+                            "description": "Coffee",
+                            "transaction_type": "debit"
+                        }
+                    ]
+                }));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_transactions(30).await;
+
+        assert!(result.is_ok());
+        let transactions = result.unwrap();
+        assert_eq!(transactions.len(), 1);
+        assert_eq!(transactions[0].id, "txn_123");
+        assert_eq!(transactions[0].amount, -50.0);
+        assert_eq!(transactions[0].merchant, Some("Coffee Shop".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_transactions_multiple() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path_contains("/transactions");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({
+                    "transactions": [
+                        {
+                            "id": "txn_1",
+                            "posted_date": "2024-01-15T10:00:00Z",
+                            "amount": -50.0,
+                            "merchant": "Store A",
+                            "description": "Purchase",
+                            "transaction_type": "debit"
+                        },
+                        {
+                            "id": "txn_2",
+                            "posted_date": "2024-01-16T10:00:00Z",
+                            "amount": 2000.0,
+                            "merchant": "Employer",
+                            "description": "Salary",
+                            "transaction_type": "credit"
+                        }
+                    ]
+                }));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_transactions(90).await;
+
+        assert!(result.is_ok());
+        let transactions = result.unwrap();
+        assert_eq!(transactions.len(), 2);
+        assert_eq!(transactions[0].amount, -50.0);
+        assert_eq!(transactions[1].amount, 2000.0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_transactions_empty() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path_contains("/transactions");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({"transactions": []}));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_transactions(30).await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_transactions_api_error() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path_contains("/transactions");
+            then.status(500)
+                .body("Internal Server Error");
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_transactions(30).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("failed"));
+    }
+
+    #[tokio::test]
+    async fn test_test_connection_success() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({"accounts": []}));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.test_connection().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_test_connection_failure() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(401)
+                .body("Unauthorized");
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.test_connection().await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_transactions_date_filtering() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path_contains("/transactions")
+                .query_param_exists("start");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(json!({"transactions": []}));
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_transactions(30).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_accounts_malformed_response() {
+        let server = MockServer::start();
+        let access_url = format!("{}/accounts", server.base_url());
+
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/accounts");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body("not valid json");
+        });
+
+        let client = SimpleFin::new(access_url);
+        let result = client.fetch_accounts().await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to parse accounts"));
+    }
+}

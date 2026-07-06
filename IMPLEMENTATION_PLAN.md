@@ -1,8 +1,47 @@
 # Momentum Budgeting App - Implementation Roadmap
 
-**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓**
+**Status**: Sprint 0 ✓ CP1 ✓ CP2 ✓ CP3 ✓ Track A ✓ Track B ✓ Track C ✓ **Settings Backend ✓** **Test Infrastructure ✓** **Track D Phase 1-2 ✓** **Track D Phase 3 ✓** **Account-to-Transaction Mapping UI ✓** **SimpleFIN Token Fix ✓** **Error Recovery UI ✓** **Track E Database Tests ✓** **Track E Component Tests ✓** **SimpleFIN Sync Integration Tests ✓**
 **Legend**: `[SPEC]` = requires spec formalization before coding · `[BLOCKED:n]` = blocked by Gap n
-**Version**: 0.0.14 (Component Tests + Test Infrastructure)
+**Version**: 0.0.15 (SimpleFIN Integration Tests)
+
+## Session 0.0.15 Completion Summary
+
+**COMPLETED THIS SESSION:**
+
+1. **SimpleFIN Sync Integration Tests (Track E)** - 13 new HTTP mocking tests
+   - [x] HTTP mocking setup with httpmock crate (0.7)
+   - [x] claim_token network error handling test
+   - [x] fetch_accounts success with single account
+   - [x] fetch_accounts success with multiple accounts
+   - [x] fetch_accounts API error handling (403)
+   - [x] fetch_accounts empty account list
+   - [x] fetch_accounts malformed JSON response
+   - [x] fetch_transactions success with single transaction
+   - [x] fetch_transactions success with multiple transactions
+   - [x] fetch_transactions empty transaction list
+   - [x] fetch_transactions API error handling (500)
+   - [x] fetch_transactions date filtering validation
+   - [x] test_connection success scenario
+   - [x] test_connection failure scenario
+
+2. **Test Infrastructure Enhancement**
+   - [x] Added httpmock as dev dependency in Cargo.toml
+   - [x] Created integration_tests module in simplefin.rs with 13 async tests
+   - [x] All tests use MockServer with JSON responses for API simulation
+
+3. **Test Status**
+   - [x] 45 Rust library tests passing (32 original + 13 new SimpleFIN integration tests)
+   - [x] 28 Rust main tests passing (db_integration_tests + calculators)
+   - [x] 58 TypeScript tests passing
+   - [x] Total: 131 tests passing
+
+4. **Known Gaps (for future implementation)**
+   - [ ] claim_token HTTP mocking tests (blocked by HTTPS requirement - MockServer is HTTP-only)
+   - [ ] Full sync_simplefin command integration tests (requires database mocking + LLM mocking)
+   - [ ] Error path tests for network timeouts, partial sync recovery
+   - [ ] LLM categorization failure scenarios during sync
+
+---
 
 ## Session 0.0.14 Completion Summary
 
@@ -394,16 +433,15 @@
 
 ## Current Priorities
 
+**COMPLETED**:
+
+1. ✓ **SimpleFIN Sync Integration Tests** (Track E) - 13 tests with httpmock
+   - Completed Session 0.0.15: HTTP mocking setup, account/transaction tests, error handling
+   - Status: 45 Rust library tests passing (13 new + 32 original)
+
 **NEXT (ready to start)**:
 
-1. **SimpleFIN Sync Integration Tests** (Track E) - Requires HTTP mocking
-   - Add wiremock or similar for HTTP response mocking
-   - Test complete sync flow: claim → fetch accounts → fetch transactions → store
-   - Test error scenarios: network timeout, invalid credentials, malformed responses
-   - Test partial failure recovery (some accounts succeed, others fail)
-   - Priority: MEDIUM (critical data pipeline validation)
-
-2. **Error Path Tests** (Track E) - Test failure scenarios
+1. **Error Path Tests** (Track E) - Test failure scenarios
    - Failed sync recovery and retry logic
    - Network timeout handling
    - Malformed API response handling
