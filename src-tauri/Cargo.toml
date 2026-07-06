@@ -1,0 +1,38 @@
+[package]
+name = "momentum"
+version = "0.0.1"
+description = "Local-first budgeting app with cash flow momentum metrics"
+authors = ["Momentum Team"]
+edition = "2021"
+rust-version = "1.96"
+
+[build-dependencies]
+tauri-build = { version = "2.1", features = [] }
+
+[dependencies]
+tauri = { version = "2.1", features = ["custom-protocol", "macos-private-api"] }
+tauri-plugin-shell = "2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+reqwest = { version = "0.11", features = ["json"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+
+[lib]
+name = "momentum_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "momentum"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
