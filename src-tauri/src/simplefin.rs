@@ -43,11 +43,6 @@ pub struct SimpleFINTransactionsResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ClaimTokenRequest {
-    pub setup_token: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct ClaimTokenResponse {
     pub access_url: String,
 }

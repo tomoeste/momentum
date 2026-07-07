@@ -121,48 +121,6 @@ pub struct SyncStatus {
     pub transaction_count: i32,
 }
 
-// Category for categorization
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Category {
-    Income,
-    Groceries,
-    DiningOut,
-    Transportation,
-    Utilities,
-    HomeAndProperty,
-    Subscriptions,
-    Shopping,
-    Healthcare,
-    PersonalCare,
-    Entertainment,
-    Transfers,
-    Interest,
-    DebtPayments,
-    Uncategorized,
-}
-
-impl AsRef<str> for Category {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Income => "Income",
-            Self::Groceries => "Groceries",
-            Self::DiningOut => "Dining Out",
-            Self::Transportation => "Transportation",
-            Self::Utilities => "Utilities",
-            Self::HomeAndProperty => "Home & Property",
-            Self::Subscriptions => "Subscriptions",
-            Self::Shopping => "Shopping",
-            Self::Healthcare => "Healthcare",
-            Self::PersonalCare => "Personal Care",
-            Self::Entertainment => "Entertainment",
-            Self::Transfers => "Transfers",
-            Self::Interest => "Interest",
-            Self::DebtPayments => "Debt Payments",
-            Self::Uncategorized => "Uncategorized",
-        }
-    }
-}
-
 // Settings DTOs
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmConfig {

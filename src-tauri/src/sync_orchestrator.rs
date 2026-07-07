@@ -26,32 +26,6 @@ impl SyncOrchestrator {
         }
     }
 
-    /// Check if sync frequency setting requires a sync
-    /// Frequency options: "manual" | "on-open" | "12h" | "24h"
-    pub fn should_sync_by_frequency(
-        db: &Database,
-        frequency: &str,
-    ) -> Result<bool> {
-        match frequency {
-            "manual" => Ok(false), // User must manually trigger
-            "on-open" => Self::should_sync_on_open(db), // Check on app open
-            "12h" => {
-                let last_sync = db.get_last_sync()?;
-                let hours_since = last_sync
-                    .map(|ts| (Utc::now().signed_duration_since(ts)).num_hours())
-                    .unwrap_or(25); // If never synced, treat as >12h
-                Ok(hours_since >= 12)
-            }
-            "24h" => {
-                let last_sync = db.get_last_sync()?;
-                let hours_since = last_sync
-                    .map(|ts| (Utc::now().signed_duration_since(ts)).num_hours())
-                    .unwrap_or(25); // If never synced, treat as >24h
-                Ok(hours_since >= 24)
-            }
-            _ => Ok(false),
-        }
-    }
 }
 
 #[cfg(test)]

@@ -627,26 +627,6 @@ impl Database {
         Ok(transactions)
     }
 
-    /// Record a transaction mapping decision
-    pub fn record_transaction_mapping(
-        &self,
-        transaction_id: &str,
-        original_account_id: &str,
-        mapped_account_id: &str,
-    ) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        let now = Utc::now().to_rfc3339();
-
-        conn.execute(
-            "INSERT OR REPLACE INTO transaction_mappings
-             (transaction_id, original_account_id, mapped_account_id, mapped_at)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![transaction_id, original_account_id, mapped_account_id, now],
-        ).map_err(|e| AppError::Database(e.to_string()))?;
-
-        Ok(())
-    }
-
     /// Bulk update transaction account assignments and record mappings
     pub fn bulk_update_transaction_accounts(
         &self,

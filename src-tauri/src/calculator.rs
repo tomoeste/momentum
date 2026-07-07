@@ -27,10 +27,6 @@ pub fn calculate_payoff_months(balance: f64, apr: f64, monthly_payment: f64) -> 
     -numerator.ln() / (1.0 + monthly_rate).ln()
 }
 
-pub fn calculate_monthly_interest(balance: f64, apr: f64) -> f64 {
-    balance * (apr / 12.0)
-}
-
 pub fn calculate_total_interest(balance: f64, apr: f64, monthly_payment: f64) -> f64 {
     let months = calculate_payoff_months(balance, apr, monthly_payment);
     if months.is_infinite() {
@@ -115,13 +111,6 @@ mod tests {
         // Result: ~51.99 months
         let months = calculate_payoff_months(5000.0, 0.22, 150.0);
         assert!((months - 52.0).abs() < 1.0); // Should be ~52 months
-    }
-
-    #[test]
-    fn test_monthly_interest() {
-        // $5000 balance, 22% APR
-        let interest = calculate_monthly_interest(5000.0, 0.22);
-        assert!((interest - 91.67).abs() < 0.1); // Should be ~$91.67/month
     }
 
     #[test]

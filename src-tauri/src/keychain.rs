@@ -73,25 +73,4 @@ impl Keychain {
             .map_err(|e| AppError::Keychain(format!("Failed to retrieve LLM API key from keychain: {}", e)))
     }
 
-    pub fn delete_llm_api_key() -> Result<()> {
-        let entry = Entry::new(LLM_SERVICE, LLM_API_KEY_ACCOUNT)
-            .map_err(|e| AppError::Keychain(format!("Failed to create keychain entry: {}", e)))?;
-
-        entry
-            .delete_password()
-            .map_err(|e| AppError::Keychain(format!("Failed to delete LLM API key from keychain: {}", e)))?;
-
-        Ok(())
-    }
-
-    pub fn has_llm_api_key() -> Result<bool> {
-        let entry = Entry::new(LLM_SERVICE, LLM_API_KEY_ACCOUNT)
-            .map_err(|e| AppError::Keychain(format!("Failed to create keychain entry: {}", e)))?;
-
-        match entry.get_password() {
-            Ok(_) => Ok(true),
-            Err(keyring::error::Error::NoEntry) => Ok(false),
-            Err(e) => Err(AppError::Keychain(format!("Failed to check keychain: {}", e))),
-        }
-    }
 }
